@@ -280,7 +280,7 @@ if __name__ == "__main__":
     Y50_point_1mA = np.zeros(len(X50_point_1mA)).astype(np.float32)
     Y50_point_2mA = np.zeros(len(X50_point_2mA)).astype(np.float32)
     Y51mA = np.zeros(len(X51mA)).astype(np.float32)
-    Y52mA = np.zeros(len(X52mA)).astype
+    Y52mA = np.zeros(len(X52mA)).astype(np.float32)
 
     # Create datasets for extra validation
     # Test the trained model on data cut from unseen device 5 and see if it recognizes it as fake
