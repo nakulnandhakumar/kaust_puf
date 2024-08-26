@@ -228,7 +228,6 @@ if __name__ == "__main__":
     df2 = pd.read_csv("puf_dataset_07_14/2Can-D2-50mA.csv")
     df3 = pd.read_csv("puf_dataset_07_14/2Can-D3-50mA.csv")
     df4 = pd.read_csv("puf_dataset_07_14/2Can-D4-50mA.csv")
-    df5_test = pd.read_csv("puf_dataset_07_14/2Can-D5-50mA.csv")
     df7_1 = pd.read_csv("puf_dataset_07_14/2Can-D7-50mA-long1.csv")
     df7_2 = pd.read_csv("puf_dataset_07_14/2Can-D7-50mA-long2.csv")
     df7_3 = pd.read_csv("puf_dataset_07_14/2Can-D7-50mA-long3.csv")
@@ -243,7 +242,13 @@ if __name__ == "__main__":
     df10 = pd.concat([df10_1, df10_2, df10_3, df10_4], axis=0)
     df10 = df10.reset_index(drop=True)
     df10_p2 = pd.read_csv("puf_dataset_07_14/p-2Can-D10-50mA.csv")
-    df7_test = pd.read_csv("puf_dataset_07_14/p-2Can-D7-50mA.csv")
+    df50_point_1mA = pd.read_csv("puf_dataset_08_19/50.1mA.csv")
+    df50_point_2mA = pd.read_csv("puf_dataset_08_19/50.2mA.csv")
+    df51mA = pd.read_csv("puf_dataset_08_19/51mA.csv")
+    df52mA = pd.read_csv("puf_dataset_08_19/52mA.csv")
+    
+    df5_test = pd.read_csv("puf_dataset_07_14/2Can-D5-50mA.csv")
+    
 
     # Split the data from CSV files into samples and add channel dimension
     # Shape of final NumPy array for data from a CSV file: (num_samples, 1, sequence_size)
@@ -258,6 +263,10 @@ if __name__ == "__main__":
     X8 = create_dataset(df8, sequence_size)
     X10 = create_dataset(df10, sequence_size)
     X10_p2 = create_dataset(df10_4, sequence_size)
+    X50_point_1mA = create_dataset(df50_point_1mA, sequence_size)
+    X50_point_2mA = create_dataset(df50_point_2mA, sequence_size)
+    X51mA = create_dataset(df51mA, sequence_size)
+    X52mA = create_dataset(df52mA, sequence_size)
 
     Y0 = np.ones(len(X0)).astype(np.float32)
     Y1 = np.zeros(len(X1)).astype(np.float32)
@@ -268,6 +277,10 @@ if __name__ == "__main__":
     Y8 = np.zeros(len(X8)).astype(np.float32)
     Y10 = np.zeros(len(X10)).astype(np.float32)
     Y10_p2 = np.zeros(len(X10_p2)).astype(np.float32)
+    Y50_point_1mA = np.zeros(len(X50_point_1mA)).astype(np.float32)
+    Y50_point_2mA = np.zeros(len(X50_point_2mA)).astype(np.float32)
+    Y51mA = np.zeros(len(X51mA)).astype(np.float32)
+    Y52mA = np.zeros(len(X52mA)).astype
 
     # Create datasets for extra validation
     # Test the trained model on data cut from unseen device 5 and see if it recognizes it as fake
@@ -280,8 +293,8 @@ if __name__ == "__main__":
     Y0 = Y0[:-200]
 
     # Concatenate data from different CSV files
-    X_dataset = np.concatenate((X0, X1, X2, X3, X4, X7, X8, X10, X10_p2), axis=0).astype(np.float32)
-    Y_dataset = np.concatenate((Y0, Y1, Y2, Y3, Y4, Y7, Y8, Y10, Y10_p2), axis=0).astype(np.float32)
+    X_dataset = np.concatenate((X0, X1, X2, X3, X4, X7, X8, X10, X10_p2, X50_point_1mA, X50_point_2mA, X51mA, X52mA), axis=0).astype(np.float32)
+    Y_dataset = np.concatenate((Y0, Y1, Y2, Y3, Y4, Y7, Y8, Y10, Y10_p2, Y50_point_1mA, Y50_point_2mA ,Y51mA, Y52mA), axis=0).astype(np.float32)
 
     # Train and evaluate the model
     result, model = train_and_evaluate(X_dataset, Y_dataset)
@@ -298,5 +311,5 @@ if __name__ == "__main__":
     fake_device_validation_accuracy = extra_validation(model, dev5_data, dev5_labels)
     print(f"Validation accuracy on fake device 5: {fake_device_validation_accuracy:.2f}%")
     
-    real_device_cut_validation_accuracy = extra_validation(model, dev5_data, dev5_labels)
+    real_device_cut_validation_accuracy = extra_validation(model, dev0_cut_data, dev0_cut_labels)
     print(f"Validation accuracy on real device 0 cut: {real_device_cut_validation_accuracy:.2f}%")
