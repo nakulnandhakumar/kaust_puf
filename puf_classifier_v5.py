@@ -185,51 +185,28 @@ def train_and_evaluate(X, Y):
 
 # ----------------------------- Extra Validation ---------------------------------
 
-def extra_validation(model, test_data, test_labels, test2_data, test2_labels, test3_data, test3_labels):
+def extra_validation(model, test_data, test_labels):
     # Create PyTorch tensor for the real and fake test sets
     test_tensor = torch.tensor(test_data).to(device)
-    test2_tensor = torch.tensor(test2_data).to(device)
-    test3_tensor = torch.tensor(test3_data).to(device)
 
     # Set the model to evaluation mode
     model.eval()
-
-    # Make predictions for each of the distributions on probe-again device 7 data (real)
+    
+    # Make predictions for each of the distributions on device 5 data (fake)
     predictions_test = []
     with torch.no_grad():
         for i in range(len(test_data)):
             output = model(test_tensor[i].unsqueeze(0))
             predicted = torch.round(torch.sigmoid(output))
             predictions_test.append(predicted.item())
-
+            
     accuracy_test = 100 * np.sum(np.array(predictions_test) == test_labels) / len(test_data)
     
-    # Make predictions for each of the distributions on device 5 data (fake)
-    predictions_test2 = []
-    with torch.no_grad():
-        for i in range(len(test2_data)):
-            output = model(test2_tensor[i].unsqueeze(0))
-            predicted = torch.round(torch.sigmoid(output))
-            predictions_test2.append(predicted.item())
-            
-    accuracy_test2 = 100 * np.sum(np.array(predictions_test2) == test2_labels) / len(test2_data)
-
-    # Make predictions for each of the distributions on cut data from device 7 (real)
-    predictions_test3 = []
-    with torch.no_grad():
-        for i in range(len(test3_data)):
-            output = model(test3_tensor[i].unsqueeze(0))
-            predicted = torch.round(torch.sigmoid(output))
-            predictions_test3.append(predicted.item())
-
-    accuracy_test3 = 100 * np.sum(np.array(predictions_test3) == test3_labels) / len(test3_data)
+    # Set the model back to training mode
+    model.train()
     
     # Return the results    
-    return {
-        "Accuracy on Device 5": accuracy_test2,
-        "Accuracy on Device 7 Cut": accuracy_test3,
-        "Accuracy on Device 7 Probe-Again": accuracy_test
-    }
+    return accuracy_test
 
 
 
@@ -249,7 +226,7 @@ if __name__ == "__main__":
     df2 = pd.read_csv("puf_dataset_07_14/2Can-D2-50mA.csv")
     df3 = pd.read_csv("puf_dataset_07_14/2Can-D3-50mA.csv")
     df4 = pd.read_csv("puf_dataset_07_14/2Can-D4-50mA.csv")
-    df5_test = pd.read_csv("puf_dataset_07_14/2Can-D5-50mA.csv")
+    df5 = pd.read_csv("puf_dataset_07_14/2Can-D5-50mA.csv")
     df7_1 = pd.read_csv("puf_dataset_07_14/2Can-D7-50mA-long1.csv")
     df7_2 = pd.read_csv("puf_dataset_07_14/2Can-D7-50mA-long2.csv")
     df7_3 = pd.read_csv("puf_dataset_07_14/2Can-D7-50mA-long3.csv")
@@ -264,7 +241,6 @@ if __name__ == "__main__":
     df10 = pd.concat([df10_1, df10_2, df10_3, df10_4], axis=0)
     df10 = df10.reset_index(drop=True)
     df10_p2 = pd.read_csv("puf_dataset_07_14/p-2Can-D10-50mA.csv")
-    df7_test = pd.read_csv("puf_dataset_07_14/p-2Can-D7-50mA.csv")
 
     # Split the data from CSV files into samples and add channel dimension
     # Shape of final NumPy array for data from a CSV file: (num_samples, 1, sequence_size)
@@ -289,16 +265,34 @@ if __name__ == "__main__":
     Y10_p2 = np.zeros(len(X10_p2)).astype(np.float32)
 
     # Create datasets for extra validation
-    # Use the p-2Can-D7-50mA.csv file as the test set to see if it recognizes the real device that has been reprobed
-    # Test the trained model on data from the probed again device 10 and see if it recognizes it as fake
+    # Cut data from seen fake devices 1,2,3,4,8 and see if the model recognizes the data as fake
+    dev1_cut_data = X1[-200:]
+    X1 = X1[:-200]
+    Y1 = Y1[:-200]
+    dev2_cut_data = X2[-200:]
+    X2 = X2[:-200]
+    Y2 = Y2[:-200]
+    dev3_cut_data = X3[-200:]
+    X3 = X3[:-200]
+    Y3 = Y3[:-200]
+    dev4_cut_data = X4[-200:]
+    X4 = X4[:-200]
+    Y4 = Y4[:-200]
+    dev8_cut_data = X8[-200:]
+    X8 = X8[:-200]
+    Y8 = Y8[:-200]
+    fake_seen_dev_cut_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev8_cut_data), axis=0).astype(np.float32)
+    fake_seen_dev_cut_labels = np.zeros(len(fake_seen_dev_cut_data)).astype(np.float32)
+    
+    # Take data from unseen fake device 5 and see if the model recognizes the data as fake
+    fake_unseen_dev = create_dataset(df5, sequence_size)
+    fake_unseen_dev_cut_data = fake_unseen_dev[-1000:]
+    fake_unseen_dev_cut_labels = np.zeros(len(fake_unseen_dev_cut_data)).astype(np.float32)
+    
     # Also reserve some data from device 7 for testing, see if it recognizes the real device
-    probe_again_dev7_data = create_dataset(df7_test, sequence_size)
-    probe_again_dev7_labels = np.ones(len(probe_again_dev7_data)).astype(np.float32)
-    dev5_data = create_dataset(df5_test, sequence_size)
-    dev5_labels = np.zeros(len(dev5_data)).astype(np.float32)
-    dev7_cut_data = X7[-1000:]
+    real_seen_dev_cut_data = X7[-1000:]
     X7 = X7[:-1000]
-    dev7_cut_labels = Y7[-1000:]
+    real_seen_dev_cut_labels = Y7[-1000:]
     Y7 = Y7[:-1000]
 
     # Concatenate data from different CSV files
@@ -307,16 +301,21 @@ if __name__ == "__main__":
 
     # Train and evaluate the model
     result, model = train_and_evaluate(X_dataset, Y_dataset)
-    extra_validation_result = extra_validation(model, probe_again_dev7_data, probe_again_dev7_labels, 
-                                                dev5_data, dev5_labels, dev7_cut_data, dev7_cut_labels)
+    
+    # Print the results
+    print("\nResults:")
+    for key, value in result.items():
+        print(f"{key}: {value}")
 
     # Save the model
     torch.save(model, "saved_models/puf_classifier_v5.pth")
 
-    # Process results of training and extra validation and combine result dictionaries
-    result.update(extra_validation_result)
-    results.append(result)
-
-    # Print the results
-    for result in results:
-        print(result)
+    # Perform extra validation and print the results
+    fake_seen_device_validation_accuracy = extra_validation(model, fake_seen_dev_cut_data, fake_seen_dev_cut_labels)
+    print(f"Validation accuracy on fake seen devices 1,2,3,4,8 cut: {fake_seen_device_validation_accuracy:.2f}%")
+    
+    fake_unseen_device_validation_accuracy = extra_validation(model, fake_unseen_dev_cut_data, fake_unseen_dev_cut_labels)
+    print(f"Validation accuracy on fake unseen device 5 cut: {fake_unseen_device_validation_accuracy:.2f}%")
+    
+    real_seen_device_cut_validation_accuracy = extra_validation(model, real_seen_dev_cut_data, real_seen_dev_cut_labels)
+    print(f"Validation accuracy on real seen device 7 cut: {real_seen_device_cut_validation_accuracy:.2f}%")
