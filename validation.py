@@ -269,30 +269,10 @@ X7 = X7[:-1000]
 real_seen_dev_cut_labels_v5 = Y7[-1000:]
 Y7 = Y7[:-1000]
 
-# Generate confusion matrices for each individual set of validation data for mutliple currents version (v6)
-# Generate predictions for each test set
-preds_real_v6 = extra_validation_preds(model_v6, real_seen_dev_cut_data_v6)
-preds_fake_seen_v6 = extra_validation_preds(model_v6, fake_seen_dev_cut_data_v6)
-preds_fake_unseen_v6 = extra_validation_preds(model_v6, fake_unseen_dev_cut_data_v6)
-
-# True labels for the test sets
-labels_real_v6 = real_seen_dev_cut_labels_v6  # Real unseen signals (should be 1s)
-labels_fake_seen_v6 = fake_seen_dev_cut_labels_v6  # Fake signals from a seen device (should be 0s)
-labels_fake_unseen_v6 = fake_unseen_dev_cut_labels_v6  # Fake signals from an unseen device (should be 0s)
-
-# Generate confusion matrix for each set
-# Define the mapping from numeric labels to string labels and the numeric labels actually returned by the model
-label_mapping = {0: 'Fake', 1: 'Real'}
-labels = [0, 1]
-labels_str = [label_mapping[label] for label in labels]
-
-cm_real = confusion_matrix(labels_real_v6, preds_real_v6, labels=labels)
-cm_fake_seen = confusion_matrix(labels_fake_seen_v6, preds_fake_seen_v6, labels=labels)
-cm_fake_unseen = confusion_matrix(labels_fake_unseen_v6, preds_fake_unseen_v6, labels=labels)
-
-# Plot the confusion matrices
+# Prepare to start generating confusion matrices
+# Method to plot the confusion matrices
 def plot_confusion_matrix(cm, title, filename, save_dir):
-    plt.figure()
+    plt.figure(figsize=(8, 6))
     
     # Define vmax and vmin for the color scale of the confusion matrix
     vmin = 0
@@ -320,10 +300,30 @@ def plot_confusion_matrix(cm, title, filename, save_dir):
 # Define the directory where the PNGs will be saved
 save_directory = 'figures/confusion_matrices'
 
+# Define the mapping from numeric labels to string labels and the numeric labels actually returned by the model
+label_mapping = {0: 'Fake', 1: 'Real'}
+labels = [0, 1]
+labels_str = [label_mapping[label] for label in labels]
+
+# Generate confusion matrices for each individual set of validation data for mutliple currents version (v6)
+# Generate predictions for each test set
+preds_real_v6 = extra_validation_preds(model_v6, real_seen_dev_cut_data_v6)
+preds_fake_seen_v6 = extra_validation_preds(model_v6, fake_seen_dev_cut_data_v6)
+preds_fake_unseen_v6 = extra_validation_preds(model_v6, fake_unseen_dev_cut_data_v6)
+
+# True labels for the test sets
+labels_real_v6 = real_seen_dev_cut_labels_v6  # Real unseen signals (should be 1s)
+labels_fake_seen_v6 = fake_seen_dev_cut_labels_v6  # Fake signals from a seen device (should be 0s)
+labels_fake_unseen_v6 = fake_unseen_dev_cut_labels_v6  # Fake signals from an unseen device (should be 0s)
+
+cm_real_v6 = confusion_matrix(labels_real_v6, preds_real_v6, labels=labels)
+cm_fake_seen_v6 = confusion_matrix(labels_fake_seen_v6, preds_fake_seen_v6, labels=labels)
+cm_fake_unseen_v6 = confusion_matrix(labels_fake_unseen_v6, preds_fake_unseen_v6, labels=labels)
+
 # Plotting and saving the confusion matrices
-plot_confusion_matrix(cm_real, "Confusion Matrix - Real Signals", "cm_real_current_v6.png", save_directory)
-plot_confusion_matrix(cm_fake_seen, "Confusion Matrix - Fake Signals from Seen Currents", "cm_fake_seen_currents_v6.png", save_directory)
-plot_confusion_matrix(cm_fake_unseen, "Confusion Matrix - Fake Signals from Unseen Currents", "cm_fake_unseen_currents_v6.png", save_directory)
+plot_confusion_matrix(cm_real_v6, "Confusion Matrix - Real Signals", "cm_real_current_v6.png", save_directory)
+plot_confusion_matrix(cm_fake_seen_v6, "Confusion Matrix - Fake Signals from Seen Currents", "cm_fake_seen_currents_v6.png", save_directory)
+plot_confusion_matrix(cm_fake_unseen_v6, "Confusion Matrix - Fake Signals from Unseen Currents", "cm_fake_unseen_currents_v6.png", save_directory)
 
 # Generate confusion matrices for each individual set of validation data for single current version (v5)
 # Generate predictions for each test set
@@ -337,9 +337,9 @@ labels_fake_seen_v5 = fake_seen_dev_cut_labels_v5  # Fake signals from a seen de
 labels_fake_unseen_v5 = fake_unseen_dev_cut_labels_v5  # Fake signals from an unseen device (should be 0s)
 
 # Generate confusion matrix for each set
-cm_real_v5 = confusion_matrix(labels_real_v5, preds_real_v5)
-cm_fake_seen_v5 = confusion_matrix(labels_fake_seen_v5, preds_fake_seen_v5)
-cm_fake_unseen_v5 = confusion_matrix(labels_fake_unseen_v5, preds_fake_unseen_v5)
+cm_real_v5 = confusion_matrix(labels_real_v5, preds_real_v5, labels=labels)
+cm_fake_seen_v5 = confusion_matrix(labels_fake_seen_v5, preds_fake_seen_v5, labels=labels)
+cm_fake_unseen_v5 = confusion_matrix(labels_fake_unseen_v5, preds_fake_unseen_v5, labels=labels)
 
 # Plotting and saving the confusion matrices
 plot_confusion_matrix(cm_real_v5, "Confusion Matrix - Real Signals", "cm_real_device_v5.png", save_directory)
