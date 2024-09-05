@@ -281,7 +281,11 @@ labels_fake_seen_v6 = fake_seen_dev_cut_labels_v6  # Fake signals from a seen de
 labels_fake_unseen_v6 = fake_unseen_dev_cut_labels_v6  # Fake signals from an unseen device (should be 0s)
 
 # Generate confusion matrix for each set
-labels = ['Fake', 'Real']
+# Define the mapping from numeric labels to string labels and the numeric labels actually returned by the model
+label_mapping = {0: 'Fake', 1: 'Real'}
+labels = [0, 1]
+labels_str = [label_mapping[label] for label in labels]
+
 cm_real = confusion_matrix(labels_real_v6, preds_real_v6, labels=labels)
 cm_fake_seen = confusion_matrix(labels_fake_seen_v6, preds_fake_seen_v6, labels=labels)
 cm_fake_unseen = confusion_matrix(labels_fake_unseen_v6, preds_fake_unseen_v6, labels=labels)
@@ -290,8 +294,7 @@ cm_fake_unseen = confusion_matrix(labels_fake_unseen_v6, preds_fake_unseen_v6, l
 def plot_confusion_matrix(cm, title, filename, save_dir):
     plt.figure()
     
-    # Define custom labels for the axes (e.g., 'Fake' for 0 and 'Real' for 1), vmax, and vmin
-    labels = ['Fake', 'Real']
+    # Define vmax and vmin for the color scale of the confusion matrix
     vmin = 0
     vmax = cm.max()
     
@@ -300,7 +303,7 @@ def plot_confusion_matrix(cm, title, filename, save_dir):
     
     # Plot the confusion matrix with custom labels
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
-                xticklabels=labels, yticklabels=labels, vmin=vmin, vmax=vmax)
+                xticklabels=labels_str, yticklabels=labels_str, vmin=vmin, vmax=vmax)
     
     plt.title(title)
     plt.xlabel('Predicted')

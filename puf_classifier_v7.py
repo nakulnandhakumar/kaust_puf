@@ -2,7 +2,7 @@
 
 '''
 Header: puf_classifier_v7.py
-The code snippet below is an extension of the code snippet from puf_classifier_v1.6.py. The code snippet
+The code snippet below is an extension of the code snippet from puf_classifier_v5.py. The code snippet
 below is trained on all devices from the first two sets of experiments. The code snippet below is trained
 using the CrossEntropyLoss() loss function which applies the softmax function to the output layer neurons
 for multiple class classification problems. The goal of the model in this file is to classify the data as 
@@ -30,7 +30,7 @@ import pandas as pd
  
 
 class CNN(nn.Module):
-    def __init__(self, input_length):
+    def __init__(self, input_length, num_classes):
         super(CNN, self).__init__()
         kernel_size = 100
         pooling_size = 10
@@ -41,7 +41,7 @@ class CNN(nn.Module):
         self.fc1 = nn.Linear(32 * ((input_length - kernel_size + 1) // pooling_size), 128)
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 32)
-        self.fc4 = nn.Linear(32, 1)
+        self.fc4 = nn.Linear(32, num_classes)
     
     def forward(self, x):
         x = torch.relu(self.conv1(x))
@@ -104,7 +104,7 @@ def train_and_evaluate(X, Y):
     print(f"Training with sequence size: {sequence_size}")
 
     # Create TensorDataset
-    dataset = TensorDataset(torch.tensor(X), torch.tensor(Y))
+    dataset = TensorDataset(torch.tensor(X), torch.tensor(Y).long())
 
     # Split dataset into train and validation sets
     train_size = int(0.7 * len(dataset))
@@ -116,9 +116,10 @@ def train_and_evaluate(X, Y):
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
     # Instantiate the model, loss function, and optimizer
+    num_classes = len(np.unique(Y))
     input_length = X.shape[2]
-    model = CNN(input_length=input_length).to(device)
-    criterion = nn.BCEWithLogitsLoss()
+    model = CNN(input_length=input_length, num_classes=num_classes).to(device)
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
     # Training loop
@@ -129,7 +130,7 @@ def train_and_evaluate(X, Y):
         correct_train = 0
         total_train = 0
         for inputs, labels in train_loader:
-            inputs, labels = inputs.to(device), labels.to(device)
+            inputs, labels = inputs.to(device), labels.to(device).long()
             optimizer.zero_grad()
             outputs = model(inputs).squeeze()
             if outputs.dim() == 0:
@@ -139,7 +140,7 @@ def train_and_evaluate(X, Y):
             optimizer.step()
             
             train_loss += loss.item()
-            predicted = torch.round(torch.sigmoid(outputs))
+            predicted = torch.max(outputs, 1)
             total_train += labels.size(0)
             correct_train += (predicted == labels).sum().item()
         
@@ -152,13 +153,13 @@ def train_and_evaluate(X, Y):
         total = 0
         with torch.no_grad():
             for inputs, labels in val_loader:
-                inputs, labels = inputs.to(device), labels.to(device)
+                inputs, labels = inputs.to(device), labels.to(device).long()
                 outputs = model(inputs).squeeze()
                 if outputs.dim() == 0:
                     outputs = outputs.unsqueeze(0)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
-                predicted = torch.round(torch.sigmoid(outputs))
+                predicted = torch.max(outputs, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         
@@ -189,7 +190,8 @@ def train_and_evaluate(X, Y):
 
 def extra_validation(model, test_data, test_labels):
     # Create PyTorch tensor for the real and fake test sets
-    test_tensor = torch.tensor(test_data).to(device)
+    test_tensor = torch.tensor(test_data, dtype=torch.float32).to(device)
+    test_labels = torch.tensor(test_labels, dtype=torch.long).to(device)
 
     # Set the model to evaluation mode
     model.eval()
@@ -199,10 +201,10 @@ def extra_validation(model, test_data, test_labels):
     with torch.no_grad():
         for i in range(len(test_data)):
             output = model(test_tensor[i].unsqueeze(0))
-            predicted = torch.round(torch.sigmoid(output))
+            predicted = torch.max(output, 1)
             predictions_test.append(predicted.item())
             
-    accuracy_test = 100 * np.sum(np.array(predictions_test) == test_labels) / len(test_data)
+    accuracy_test = 100 * np.sum(np.array(predictions_test) == test_labels.cpu().numpy()) / len(test_data)
     
     # Set the model back to training mode
     model.train()
@@ -224,7 +226,6 @@ if __name__ == "__main__":
     results = []
 
     # Load the CSV file with measurements from devices into Pandas DataFrames
-    df0 = pd.read_csv("puf_dataset_08_19/50mA.csv")
     df1 = pd.read_csv("puf_dataset_07_14/2Can-D1-50mA.csv")
     df2 = pd.read_csv("puf_dataset_07_14/2Can-D2-50mA.csv")
     df3 = pd.read_csv("puf_dataset_07_14/2Can-D3-50mA.csv")
@@ -244,110 +245,74 @@ if __name__ == "__main__":
     df10 = pd.concat([df10_1, df10_2, df10_3, df10_4], axis=0)
     df10 = df10.reset_index(drop=True)
     df10_p2 = pd.read_csv("puf_dataset_07_14/p-2Can-D10-50mA.csv")
-    df50_point_1mA = pd.read_csv("puf_dataset_08_19/50.1mA.csv")
-    df50_point_2mA = pd.read_csv("puf_dataset_08_19/50.2mA.csv")
-    df50_point_3mA = pd.read_csv("puf_dataset_08_19/50.3mA.csv")
-    df50_point_4mA = pd.read_csv("puf_dataset_08_19/50.4mA.csv")
-    df50_point_5mA = pd.read_csv("puf_dataset_08_19/50.5mA.csv")
-    df51mA = pd.read_csv("puf_dataset_08_19/51mA.csv")
-    df52mA = pd.read_csv("puf_dataset_08_19/52mA.csv")
-    df53mA = pd.read_csv("puf_dataset_08_19/53mA.csv")
-    df54mA = pd.read_csv("puf_dataset_08_19/54mA.csv")
-    df55mA = pd.read_csv("puf_dataset_08_19/55mA.csv")
-    
 
     # Split the data from CSV files into samples and add channel dimension
     # Shape of final NumPy array for data from a CSV file: (num_samples, 1, sequence_size)
     # Generate labels for CSV files (1 for "real" and 0 for "fake" distributions)
-    # For this model, device 0 is real, all other devices are fake
-    X0 = create_dataset(df0, sequence_size)
+    # For this model, device 7 is real, all other devices are fake
     X1 = create_dataset(df1, sequence_size)  
     X2 = create_dataset(df2, sequence_size)
     X3 = create_dataset(df3, sequence_size)
     X4 = create_dataset(df4, sequence_size)
+    X5 = create_dataset(df5, sequence_size)
     X7 = create_dataset(df7, sequence_size)
     X8 = create_dataset(df8, sequence_size)
     X10 = create_dataset(df10, sequence_size)
     X10_p2 = create_dataset(df10_4, sequence_size)
-    X50_point_1mA = create_dataset(df50_point_1mA, sequence_size)
-    X50_point_2mA = create_dataset(df50_point_2mA, sequence_size)
-    X50_point_3mA = create_dataset(df50_point_3mA, sequence_size)
-    X50_point_4mA = create_dataset(df50_point_4mA, sequence_size)
-    X50_point_5mA = create_dataset(df50_point_5mA, sequence_size)
-    X51mA = create_dataset(df51mA, sequence_size)
-    X52mA = create_dataset(df52mA, sequence_size)
-    X53mA = create_dataset(df53mA, sequence_size)
-    X54mA = create_dataset(df54mA, sequence_size)
-    X55mA = create_dataset(df55mA, sequence_size)
 
-    Y0 = np.ones(len(X0)).astype(np.float32)
-    Y1 = np.zeros(len(X1)).astype(np.float32)
-    Y2 = np.zeros(len(X2)).astype(np.float32)
-    Y3 = np.zeros(len(X3)).astype(np.float32)
-    Y4 = np.zeros(len(X4)).astype(np.float32)
-    Y7 = np.zeros(len(X7)).astype(np.float32)
-    Y8 = np.zeros(len(X8)).astype(np.float32)
-    Y10 = np.zeros(len(X10)).astype(np.float32)
-    Y10_p2 = np.zeros(len(X10_p2)).astype(np.float32)
-    Y50_point_1mA = np.zeros(len(X50_point_1mA)).astype(np.float32)
-    Y50_point_2mA = np.zeros(len(X50_point_2mA)).astype(np.float32)
-    Y50_point_3mA = np.zeros(len(X50_point_3mA)).astype(np.float32)
-    Y50_point_4mA = np.zeros(len(X50_point_4mA)).astype(np.float32)
-    Y50_point_5mA = np.zeros(len(X50_point_5mA)).astype(np.float32)
-    Y51mA = np.zeros(len(X51mA)).astype(np.float32)
-    Y52mA = np.zeros(len(X52mA)).astype(np.float32)
-    Y53mA = np.zeros(len(X53mA)).astype(np.float32)
-    Y54mA = np.zeros(len(X54mA)).astype(np.float32)
-    Y55mA = np.zeros(len(X55mA)).astype(np.float32)
+    Y1 = np.full(len(X1), 1).astype(np.float32)
+    Y2 = np.full(len(X2), 2).astype(np.float32)
+    Y3 = np.full(len(X3), 3).astype(np.float32)
+    Y4 = np.full(len(X4), 4).astype(np.float32)
+    Y5 = np.full(len(X5), 5).astype(np.float32)
+    Y7 = np.full(len(X7), 6).astype(np.float32)
+    Y8 = np.full(len(X8), 7).astype(np.float32)
+    Y10 = np.full(len(X10), 8).astype(np.float32)
+    Y10_p2 = np.full(len(X10_p2), 9).astype(np.float32)
 
     # Create datasets for extra validation
-    # Cut data from seen fake currents 50.1, 50.2, 50.3, 50.4, 50.5 and see if the model recognizes the data as fake
-    X50_point_1mA_data = X50_point_1mA[-200:]
-    X50_point_1mA = X50_point_1mA[:-200]
-    Y50_point_1mA = Y50_point_1mA[:-200]
-    X50_point_2mA_data = X50_point_2mA[-200:]
-    X50_point_2mA = X50_point_2mA[:-200]
-    Y50_point_2mA = Y50_point_2mA[:-200]
-    X50_point_3mA_data = X50_point_3mA[-200:]
-    X50_point_3mA = X50_point_3mA[:-200]
-    Y50_point_3mA = Y50_point_3mA[:-200]
-    X50_point_4mA_data = X50_point_4mA[-200:]
-    X50_point_4mA = X50_point_4mA[:-200]
-    Y50_point_4mA = Y50_point_4mA[:-200]
-    X50_point_5mA_data = X50_point_5mA[-200:]
-    X50_point_5mA = X50_point_5mA[:-200]
-    Y50_point_5mA = Y50_point_5mA[:-200]
-    fake_seen_dev_cut_data = np.concatenate((X50_point_1mA_data, X50_point_2mA_data, X50_point_3mA_data, X50_point_4mA_data, X50_point_5mA_data), axis=0).astype(np.float32)
-    fake_seen_dev_cut_labels = np.zeros(len(fake_seen_dev_cut_data)).astype(np.float32)
+    # Cut data from seen devices 1,2,3,4,5,7,8 and see if the model correctly predicts the right device
+    dev1_cut_data = X1[-200:]
+    X1 = X1[:-200]
+    dev1_cut_labels = Y1[-200:]
+    Y1 = Y1[:-200]
     
-    # Cut data from unseen fake currents 51, 52, 53, 54, 55 and see if the model recognizes the data as fake
-    X51mA_data = X51mA[-200:]
-    X51mA = X51mA[:-200]
-    Y51mA = Y51mA[:-200]
-    X52mA_data = X52mA[-200:]
-    X52mA = X52mA[:-200]
-    Y52mA = Y52mA[:-200]
-    X53mA_data = X53mA[-200:]
-    X53mA = X53mA[:-200]
-    Y53mA = Y53mA[:-200]
-    X54mA_data = X54mA[-200:]
-    X54mA = X54mA[:-200]
-    Y54mA = Y54mA[:-200]
-    X55mA_data = X55mA[-200:]
-    X55mA = X55mA[:-200]
-    Y55mA = Y55mA[:-200]
-    fake_unseen_dev_cut_data = np.concatenate((X51mA_data, X52mA_data, X53mA_data, X54mA_data, X55mA_data), axis=0).astype(np.float32)
-    fake_unseen_dev_cut_labels = np.zeros(len(fake_unseen_dev_cut_data)).astype(np.float32)
+    dev2_cut_data = X2[-200:]
+    X2 = X2[:-200]
+    dev2_cut_labels = Y2[-200:]
+    Y2 = Y2[:-200]
     
-    # Cut data from real seen device 0 current 50mA and see if the model recognizes the data as real
-    real_seen_dev_cut_data = X0[-1000:]
-    X0 = X0[:-1000]
-    real_seen_dev_cut_labels = Y0[-1000:]
-    Y0 = Y0[:-1000]
+    dev3_cut_data = X3[-200:]
+    X3 = X3[:-200]
+    dev3_cut_labels = Y3[-200:]
+    Y3 = Y3[:-200]
+    
+    dev4_cut_data = X4[-200:]
+    X4 = X4[:-200]
+    dev4_cut_labels = Y4[-200:]
+    Y4 = Y4[:-200]
+    
+    dev5_cut_data = X5[-200:]
+    X5 = X5[:-200]
+    dev5_cut_labels = Y5[-200:]
+    Y5 = Y5[:-200]
+    
+    dev7_cut_data = X7[-200:]
+    X7 = X7[:-200]
+    dev7_cut_labels = Y7[-200:]
+    Y7 = Y7[:-200]
+    
+    dev8_cut_data = X8[-200:]
+    X8 = X8[:-200]
+    dev8_cut_labels = Y8[-200:]
+    Y8 = Y8[:-200]
+    
+    holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev8_cut_data), axis=0).astype(np.float32)
+    holdout_labels = np.concatenate((dev1_cut_labels, dev2_cut_labels, dev3_cut_labels, dev4_cut_labels, dev5_cut_labels, dev8_cut_labels), axis=0)
 
     # Concatenate data from different CSV files
-    X_dataset = np.concatenate((X0, X1, X2, X3, X4, X7, X8, X10, X10_p2, X50_point_1mA, X50_point_2mA, X50_point_3mA, X50_point_4mA, X50_point_5mA), axis=0).astype(np.float32)
-    Y_dataset = np.concatenate((Y0, Y1, Y2, Y3, Y4, Y7, Y8, Y10, Y10_p2, Y50_point_1mA, Y50_point_2mA ,Y50_point_3mA, Y50_point_4mA, Y50_point_5mA), axis=0).astype(np.float32)
+    X_dataset = np.concatenate((X1, X2, X3, X4, X5, X7, X8, X10, X10_p2), axis=0).astype(np.float32)
+    Y_dataset = np.concatenate((Y1, Y2, Y3, Y4, Y5, Y7, Y8, Y10, Y10_p2), axis=0)
 
     # Train and evaluate the model
     result, model = train_and_evaluate(X_dataset, Y_dataset)
@@ -358,14 +323,8 @@ if __name__ == "__main__":
         print(f"{key}: {value}")
 
     # Save the model
-    torch.save(model, "saved_models/puf_classifier_v6.pth")
+    torch.save(model, "saved_models/puf_classifier_v7.pth")
 
     # Perform extra validation and print the results
-    fake_seen_device_validation_accuracy = extra_validation(model, fake_seen_dev_cut_data, fake_seen_dev_cut_labels)
-    print(f"Validation accuracy on fake seen device currents 50.1mA, 50.2mA, 50.3mA, 50.4mA, 50.5mA cut: {fake_seen_device_validation_accuracy:.2f}%")
-    
-    fake_unseen_device_validation_accuracy = extra_validation(model, fake_unseen_dev_cut_data, fake_unseen_dev_cut_labels)
-    print(f"Validation accuracy on fake unseen device currents 51mA, 52mA, 53mA, 54mA, 55mA cut: {fake_unseen_device_validation_accuracy:.2f}%")
-    
-    real_seen_device_cut_validation_accuracy = extra_validation(model, real_seen_dev_cut_data, real_seen_dev_cut_labels)
-    print(f"Validation accuracy on real seen device 0 current 50mA cut: {real_seen_device_cut_validation_accuracy:.2f}%")
+    holdout_accuracy = extra_validation(model, holdout_data, holdout_labels)
+    print(f"Validation accuracy on cut holdout data: {holdout_accuracy:.2f}%")
