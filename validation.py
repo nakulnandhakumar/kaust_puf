@@ -8,6 +8,7 @@ from puf_classifier_v6 import CNN
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 import seaborn as sns
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 
 # Helper function to create vectors with intensity data measurements from CSV file
 def create_dataset(df, sequence_size):
@@ -289,24 +290,40 @@ cm_fake_unseen = confusion_matrix(labels_fake_unseen_v6, preds_fake_unseen_v6)
 def plot_confusion_matrix(cm, title, filename, save_dir):
     plt.figure(figsize=(8, 6))
     
-    # Define custom labels for the axes (e.g., 'Fake' for 0 and 'Real' for 1)
+    # Define the axis labels
     labels = ['Fake', 'Real']
     
-    # Plot the confusion matrix with custom labels
-    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
-                xticklabels=labels, yticklabels=labels, 
-                vmin=0, vmax=max(np.max(cm), 1))
+    # Create a custom colormap where 0 values get a unique color (e.g., light gray)
+    cmap = ListedColormap(['lightgray', 'lightblue', 'blue'])
     
+    # Plot the confusion matrix with custom colormap
+    plt.imshow(cm, interpolation='nearest', cmap=cmap)
     plt.title(title)
-    plt.xlabel('Predicted')
+    plt.colorbar()
+
+    # Add ticks and labels for both axes
+    tick_marks = np.arange(len(labels))
+    plt.xticks(tick_marks, labels)
+    plt.yticks(tick_marks, labels)
+
+    # Manually annotate each cell, including zeros
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(j, i, format(cm[i, j], 'd'),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > np.max(cm) / 2 else "black")
+
+    # Add labels to the axes
     plt.ylabel('Actual')
-    
+    plt.xlabel('Predicted')
+
     # Ensure the save directory exists
     os.makedirs(save_dir, exist_ok=True)
-    
+
     # Save the figure as a PNG file
     file_path = os.path.join(save_dir, filename)
     plt.savefig(file_path)
+    plt.close()
 
 # Define the directory where the PNGs will be saved
 save_directory = 'figures/confusion_matrices'
