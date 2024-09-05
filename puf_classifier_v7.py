@@ -140,7 +140,7 @@ def train_and_evaluate(X, Y):
             optimizer.step()
             
             train_loss += loss.item()
-            predicted = torch.max(outputs, 1)
+            _, predicted = torch.max(outputs, 1)
             total_train += labels.size(0)
             correct_train += (predicted == labels).sum().item()
         
@@ -159,7 +159,7 @@ def train_and_evaluate(X, Y):
                     outputs = outputs.unsqueeze(0)
                 loss = criterion(outputs, labels)
                 val_loss += loss.item()
-                predicted = torch.max(outputs, 1)
+                _, predicted = torch.max(outputs, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
         
@@ -201,7 +201,7 @@ def extra_validation(model, test_data, test_labels):
     with torch.no_grad():
         for i in range(len(test_data)):
             output = model(test_tensor[i].unsqueeze(0))
-            predicted = torch.max(output, 1)
+            _, predicted = torch.max(output, 1)
             predictions_test.append(predicted.item())
             
     accuracy_test = 100 * np.sum(np.array(predictions_test) == test_labels.cpu().numpy()) / len(test_data)
@@ -260,15 +260,15 @@ if __name__ == "__main__":
     X10 = create_dataset(df10, sequence_size)
     X10_p2 = create_dataset(df10_4, sequence_size)
 
-    Y1 = np.full(len(X1), 1).astype(np.float32)
-    Y2 = np.full(len(X2), 2).astype(np.float32)
-    Y3 = np.full(len(X3), 3).astype(np.float32)
-    Y4 = np.full(len(X4), 4).astype(np.float32)
-    Y5 = np.full(len(X5), 5).astype(np.float32)
-    Y7 = np.full(len(X7), 6).astype(np.float32)
-    Y8 = np.full(len(X8), 7).astype(np.float32)
-    Y10 = np.full(len(X10), 8).astype(np.float32)
-    Y10_p2 = np.full(len(X10_p2), 9).astype(np.float32)
+    Y1 = np.full(len(X1), 0).astype(np.float32)
+    Y2 = np.full(len(X2), 1).astype(np.float32)
+    Y3 = np.full(len(X3), 2).astype(np.float32)
+    Y4 = np.full(len(X4), 3).astype(np.float32)
+    Y5 = np.full(len(X5), 4).astype(np.float32)
+    Y7 = np.full(len(X7), 5).astype(np.float32)
+    Y8 = np.full(len(X8), 6).astype(np.float32)
+    Y10 = np.full(len(X10), 7).astype(np.float32)
+    Y10_p2 = np.full(len(X10_p2), 8).astype(np.float32)
 
     # Create datasets for extra validation
     # Cut data from seen devices 1,2,3,4,5,7,8 and see if the model correctly predicts the right device
