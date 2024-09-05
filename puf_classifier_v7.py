@@ -1,11 +1,12 @@
 #!/ibex/user/nandhan/mambaforge/bin/python3
 
 '''
-Header: puf_classifier_v6.py
+Header: puf_classifier_v7.py
 The code snippet below is an extension of the code snippet from puf_classifier_v1.6.py. The code snippet
-below is trained on new data measured from new devices on August 19th 2024. It has the same architecture
-as the model in puf_classifier_v1.5.py but the data is different. Data is measured from one device except
-that the laser is pumped with different amounts of current. We call this device 0
+below is trained on all devices from the first two sets of experiments. The code snippet below is trained
+using the CrossEntropyLoss() loss function which applies the softmax function to the output layer neurons
+for multiple class classification problems. The goal of the model in this file is to classify the data as 
+beloning to a certain device.
 '''
 
 import torch

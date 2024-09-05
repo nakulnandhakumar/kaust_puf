@@ -1,7 +1,7 @@
 #!/ibex/user/nandhan/mambaforge/bin/python3
 
 '''
-Header: puf_classifier_v1.3.py
+Header: puf_classifier_v3.py
 The code snippet below is an extension and a modification of the code snippet 
 from puf_classifier_v1.2.py. The code snippet returns to the approach of feeding
 the entire sequence of intensity data measurements to the model instead of converting

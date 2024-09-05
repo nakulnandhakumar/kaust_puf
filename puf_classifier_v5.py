@@ -1,7 +1,7 @@
 #!/ibex/user/nandhan/mambaforge/bin/python3
 
 '''
-Header: puf_classifier_v1.5.py
+Header: puf_classifier_v5.py
 The code snippet below is an extension of the code snippet from puf_classifier_v1.4.py. The code snippet
 below is trained on new data measured from new devices on July 14th 2024. It has the same architecture
 as the model in puf_classifier_v1.4.py but the data is different.

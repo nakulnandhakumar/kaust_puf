@@ -1,7 +1,7 @@
 #!/ibex/user/nandhan/mambaforge/bin/python3
 
 '''
-Header: puf_classifier_v1.4.py
+Header: puf_classifier_v4.py
 The code snippet below is an extension of the code snippet from puf_classifier_v1.3.py. The code snippet
 below is trained using a loss function that is better suited for binary classification problems. The
 loss function used is BinaryCrossEntropy Loss With Logits and this applies the sigmoid function to the

@@ -1,5 +1,5 @@
 '''
-Header: puf_classifier_v1.2.py
+Header: puf_classifier_v2.py
 This code trains a 1D CNN model to classify the data from the CSV files as "real" or "fake" based on the device
 the data was measured from. One device is arbitrarily chosen as the "real" device and the rest are considered "fake"
 devices. The model is trained on data from 7 devices and tested on data from an 8th device. The model is trained
