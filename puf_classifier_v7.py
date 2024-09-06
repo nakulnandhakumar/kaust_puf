@@ -15,6 +15,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
 import pandas as pd
+import os
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
 # ----------------------------- Neural Network Architecture --------------------
 
@@ -213,7 +217,57 @@ def extra_validation(model, test_data, test_labels):
     return accuracy_test
 
 
+def extra_validation_preds(model, test_data):
+    # Create PyTorch tensor for the real and fake test sets
+    test_tensor = torch.tensor(test_data).to(device)
 
+    # Set the model to evaluation mode
+    model.eval()
+    
+    # Make predictions for each of the distributions on device 5 data (fake)
+    predictions_test = []
+    with torch.no_grad():
+        for i in range(len(test_data)):
+            output = model(test_tensor[i].unsqueeze(0))
+            predicted = torch.round(torch.sigmoid(output))
+            predictions_test.append(predicted.item())
+            
+    # Convert predictions_test to a NumPy array
+    predictions_test = np.array(predictions_test)
+    
+    # Set the model back to training mode
+    model.train()
+    
+    # Return the results    
+    return predictions_test
+
+
+# Method to plot the confusion matrices
+def plot_confusion_matrix(cm, title, filename, save_dir):
+    plt.figure(figsize=(8, 6))
+    
+    # Define vmax and vmin for the color scale of the confusion matrix
+    vmin = 0
+    vmax = cm.max()
+    
+    print(f"Confusion Matrix: {cm}")
+    print(f"Confusion Matrix Shape: {cm.shape}")
+    
+    # Plot the confusion matrix with custom labels
+    sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
+                xticklabels=cm_labels_str, yticklabels=cm_labels_str, vmin=vmin, vmax=vmax)
+    
+    plt.title(title)
+    plt.xlabel('Predicted')
+    plt.ylabel('Actual')
+    
+    # Ensure the save directory exists
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Save the figure as a PNG file
+    file_path = os.path.join(save_dir, filename)
+    plt.savefig(file_path)
+    plt.close()
     
 # ----------------------------- MAIN ----------------------------------------------
 if __name__ == "__main__":
@@ -245,6 +299,16 @@ if __name__ == "__main__":
     df10 = pd.concat([df10_1, df10_2, df10_3, df10_4], axis=0)
     df10 = df10.reset_index(drop=True)
     df10_p2 = pd.read_csv("puf_dataset_07_14/p-2Can-D10-50mA.csv")
+    
+    df1_old = pd.read_csv("puf_dataset_07_08/Can-D1-50mA2.csv")
+    df2_old = pd.read_csv("puf_dataset_07_08/Can-D2-50mA2.csv")
+    df3_old = pd.read_csv("puf_dataset_07_08/Can-D3-50mA.csv")
+    df4_old = pd.read_csv("puf_dataset_07_08/Can-D4-50mA.csv")
+    df5_old = pd.read_csv("puf_dataset_07_08/Can-D5-50mA.csv")
+    df6_old = pd.read_csv("puf_dataset_07_08/Can-D6-50mA.csv")
+    df7_old = pd.read_csv("puf_dataset_07_08/Can-D7-50mA.csv")
+    df8_old = pd.read_csv("puf_dataset_07_08/Can-D8-50mA.csv")
+    df10_old = pd.read_csv("puf_dataset_07_08/Can-D10-50mA.csv")
 
     # Split the data from CSV files into samples and add channel dimension
     # Shape of final NumPy array for data from a CSV file: (num_samples, 1, sequence_size)
@@ -259,6 +323,15 @@ if __name__ == "__main__":
     X8 = create_dataset(df8, sequence_size)
     X10 = create_dataset(df10, sequence_size)
     X10_p2 = create_dataset(df10_4, sequence_size)
+    X1_old = create_dataset(df1_old, sequence_size)
+    X2_old = create_dataset(df2_old, sequence_size)
+    X3_old = create_dataset(df3_old, sequence_size)
+    X4_old = create_dataset(df4_old, sequence_size)
+    X5_old = create_dataset(df5_old, sequence_size)
+    X6_old = create_dataset(df6_old, sequence_size)
+    X7_old = create_dataset(df7_old, sequence_size)
+    X8_old = create_dataset(df8_old, sequence_size)
+    X10_old = create_dataset(df10_old, sequence_size)
 
     Y1 = np.full(len(X1), 0).astype(np.float32)
     Y2 = np.full(len(X2), 1).astype(np.float32)
@@ -269,6 +342,15 @@ if __name__ == "__main__":
     Y8 = np.full(len(X8), 6).astype(np.float32)
     Y10 = np.full(len(X10), 7).astype(np.float32)
     Y10_p2 = np.full(len(X10_p2), 8).astype(np.float32)
+    Y1_old = np.full(len(X1_old), 9).astype(np.float32)
+    Y2_old = np.full(len(X2_old), 10).astype(np.float32)
+    Y3_old = np.full(len(X3_old), 11).astype(np.float32)
+    Y4_old = np.full(len(X4_old), 12).astype(np.float32)
+    Y5_old = np.full(len(X5_old), 13).astype(np.float32)
+    Y6_old = np.full(len(X6_old), 14).astype(np.float32)
+    Y7_old = np.full(len(X7_old), 15).astype(np.float32)
+    Y8_old = np.full(len(X8_old), 16).astype(np.float32)
+    Y10_old = np.full(len(X10_old), 17).astype(np.float32)
 
     # Create datasets for extra validation
     # Cut data from seen devices 1,2,3,4,5,7,8 and see if the model correctly predicts the right device
@@ -307,12 +389,66 @@ if __name__ == "__main__":
     dev8_cut_labels = Y8[-200:]
     Y8 = Y8[:-200]
     
-    holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev8_cut_data), axis=0).astype(np.float32)
-    holdout_labels = np.concatenate((dev1_cut_labels, dev2_cut_labels, dev3_cut_labels, dev4_cut_labels, dev5_cut_labels, dev8_cut_labels), axis=0)
+    dev1_old_cut_data = X1_old[-200:]
+    X1_old = X1_old[:-200]
+    dev1_old_cut_labels = Y1_old[-200:]
+    Y1_old = Y1_old[:-200]
+    
+    dev2_old_cut_data = X2_old[-200:]
+    X2_old = X2_old[:-200]
+    dev2_old_cut_labels = Y2_old[-200:]
+    Y2_old = Y2_old[:-200]
+    
+    dev3_old_cut_data = X3_old[-200:]
+    X3_old = X3_old[:-200]
+    dev3_old_cut_labels = Y3_old[-200:]
+    Y3_old = Y3_old[:-200]
+    
+    dev4_old_cut_data = X4_old[-200:]
+    X4_old = X4_old[:-200]
+    dev4_old_cut_labels = Y4_old[-200:]
+    Y4_old = Y4_old[:-200]
+    
+    dev5_old_cut_data = X5_old[-200:]
+    X5_old = X5_old[:-200]
+    dev5_old_cut_labels = Y5_old[-200:]
+    Y5_old = Y5_old[:-200]
+    
+    dev6_old_cut_data = X6_old[-200:]
+    X6_old = X6_old[:-200]
+    dev6_old_cut_labels = Y6_old[-200:]
+    Y6_old = Y6_old[:-200]
+    
+    dev7_old_cut_data = X7_old[-200:]
+    X7_old = X7_old[:-200]
+    dev7_old_cut_labels = Y7_old[-200:]
+    Y7_old = Y7_old[:-200]
+    
+    dev8_old_cut_data = X8_old[-200:]
+    X8_old = X8_old[:-200]
+    dev8_old_cut_labels = Y8_old[-200:]
+    Y8_old = Y8_old[:-200]
+    
+    dev10_old_cut_data = X10_old[-200:]
+    X10_old = X10_old[:-200]
+    dev10_old_cut_labels = Y10_old[-200:]
+    Y10_old = Y10_old[:-200]
+    
+    holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, 
+                                   dev8_cut_data, dev1_old_cut_data, dev2_old_cut_data, dev3_old_cut_data, 
+                                   dev4_old_cut_data, dev5_old_cut_data, dev6_old_cut_data, dev7_old_cut_data, 
+                                   dev8_old_cut_data, dev10_old_cut_data), axis=0).astype(np.float32)
+    holdout_labels = np.concatenate((dev1_cut_labels, dev2_cut_labels, dev3_cut_labels, dev4_cut_labels, 
+                                     dev5_cut_labels, dev8_cut_labels, dev1_old_cut_labels, dev2_old_cut_labels, 
+                                     dev3_old_cut_labels, dev4_old_cut_labels, dev5_old_cut_labels, 
+                                     dev6_old_cut_labels, dev7_old_cut_labels, dev8_old_cut_labels, 
+                                     dev10_old_cut_labels), axis=0)
 
     # Concatenate data from different CSV files
-    X_dataset = np.concatenate((X1, X2, X3, X4, X5, X7, X8, X10, X10_p2), axis=0).astype(np.float32)
-    Y_dataset = np.concatenate((Y1, Y2, Y3, Y4, Y5, Y7, Y8, Y10, Y10_p2), axis=0)
+    X_dataset = np.concatenate((X1, X2, X3, X4, X5, X7, X8, X10, X10_p2, X1_old, 
+                                X2_old, X3_old, X4_old, X5_old, X6_old, X7_old, X8_old, X10_old), axis=0)
+    Y_dataset = np.concatenate((Y1, Y2, Y3, Y4, Y5, Y7, Y8, Y10, Y10_p2, Y1_old, 
+                                Y2_old, Y3_old, Y4_old, Y5_old, Y6_old, Y7_old, Y8_old, Y10_old), axis=0)
 
     # Train and evaluate the model
     result, model = train_and_evaluate(X_dataset, Y_dataset)
@@ -328,3 +464,21 @@ if __name__ == "__main__":
     # Perform extra validation and print the results
     holdout_accuracy = extra_validation(model, holdout_data, holdout_labels)
     print(f"Validation accuracy on cut holdout data: {holdout_accuracy:.2f}%")
+    
+    # Generate confusion matrix with dimensions being the devices
+    # Generate predictions for the holdout set
+    preds = extra_validation_preds(model, holdout_data)
+
+    # True labels for the holdout set
+    labels = holdout_labels 
+
+    # Generate confusion matrix for each set
+    cm = confusion_matrix(labels, preds, labels=labels)
+
+    # Plotting and saving the confusion matrices
+    save_directory = 'figures/confusion_matrices'
+    list_of_labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    cm_label_mapping = {1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D10', 
+                        10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16', 17: 'D17'}
+    cm_labels_str = [cm_label_mapping[label] for label in list_of_labels]
+    plot_confusion_matrix(cm, "Confusion Matrix - Multiclass Model", "cm_multiclass_model.png", save_directory)
