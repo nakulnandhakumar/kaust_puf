@@ -348,7 +348,7 @@ if __name__ == "__main__":
     Y5_old = np.full(len(X5_old), 13).astype(np.float32)
     Y6_old = np.full(len(X6_old), 14).astype(np.float32)
     Y7_old = np.full(len(X7_old), 15).astype(np.float32)
-    Y10_old = np.full(len(X10_old), 17).astype(np.float32)
+    Y10_old = np.full(len(X10_old), 16).astype(np.float32)
 
     # Create datasets for extra validation
     # Cut data from seen devices 1,2,3,4,5,7,8 and see if the model correctly predicts the right device
@@ -471,7 +471,7 @@ if __name__ == "__main__":
     # Generate predictions for the holdout set
     list_of_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
     cm_label_mapping = {0: 'D0', 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D9', 
-                        10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16', 17: 'D17'}
+                        10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16'}
     cm_labels_str = [cm_label_mapping[label] for label in list_of_labels]
     preds = extra_validation_preds(model, holdout_data)
 
