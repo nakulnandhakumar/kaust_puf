@@ -322,7 +322,7 @@ if __name__ == "__main__":
     X7 = create_dataset(df7, sequence_size)
     X8 = create_dataset(df8, sequence_size)
     X10 = create_dataset(df10, sequence_size)
-    X10_p2 = create_dataset(df10_4, sequence_size)
+    X10_p2 = create_dataset(df10_p2, sequence_size)
     X1_old = create_dataset(df1_old, sequence_size)
     X2_old = create_dataset(df2_old, sequence_size)
     X3_old = create_dataset(df3_old, sequence_size)
@@ -389,6 +389,16 @@ if __name__ == "__main__":
     dev8_cut_labels = Y8[-200:]
     Y8 = Y8[:-200]
     
+    dev10_cut_data = X10[-200:]
+    X10 = X10[:-200]
+    dev10_cut_labels = Y10[-200:]
+    Y10 = Y10[:-200]
+    
+    dev10_p2_cut_data = X10_p2[-200:]
+    X10_p2 = X10_p2[:-200]
+    dev10_p2_cut_labels = Y10_p2[-200:]
+    Y10_p2 = Y10_p2[:-200]
+    
     dev1_old_cut_data = X1_old[-200:]
     X1_old = X1_old[:-200]
     dev1_old_cut_labels = Y1_old[-200:]
@@ -434,13 +444,13 @@ if __name__ == "__main__":
     dev10_old_cut_labels = Y10_old[-200:]
     Y10_old = Y10_old[:-200]
     
-    holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, 
-                                   dev8_cut_data, dev1_old_cut_data, dev2_old_cut_data, dev3_old_cut_data, 
+    holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev7_cut_data,
+                                   dev8_cut_data, dev10_cut_data, dev10_p2_cut_data, dev1_old_cut_data, dev2_old_cut_data, dev3_old_cut_data, 
                                    dev4_old_cut_data, dev5_old_cut_data, dev6_old_cut_data, dev7_old_cut_data, 
                                    dev8_old_cut_data, dev10_old_cut_data), axis=0).astype(np.float32)
     holdout_labels = np.concatenate((dev1_cut_labels, dev2_cut_labels, dev3_cut_labels, dev4_cut_labels, 
-                                     dev5_cut_labels, dev8_cut_labels, dev1_old_cut_labels, dev2_old_cut_labels, 
-                                     dev3_old_cut_labels, dev4_old_cut_labels, dev5_old_cut_labels, 
+                                     dev5_cut_labels, dev7_cut_labels, dev8_cut_labels, dev10_cut_labels, dev10_p2_cut_labels, dev1_old_cut_labels, dev2_old_cut_labels, 
+                                     dev3_old_cut_labels, dev4_old_cut_labels, dev5_old_cut_labels,
                                      dev6_old_cut_labels, dev7_old_cut_labels, dev8_old_cut_labels, 
                                      dev10_old_cut_labels), axis=0)
 
