@@ -469,7 +469,7 @@ if __name__ == "__main__":
     
     # Generate confusion matrix with dimensions being the devices
     # Generate predictions for the holdout set
-    list_of_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    list_of_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     cm_label_mapping = {0: 'D0', 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D9', 
                         10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16'}
     cm_labels_str = [cm_label_mapping[label] for label in list_of_labels]
