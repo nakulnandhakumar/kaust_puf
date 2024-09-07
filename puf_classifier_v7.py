@@ -330,7 +330,6 @@ if __name__ == "__main__":
     X5_old = create_dataset(df5_old, sequence_size)
     X6_old = create_dataset(df6_old, sequence_size)
     X7_old = create_dataset(df7_old, sequence_size)
-    X8_old = create_dataset(df8_old, sequence_size)
     X10_old = create_dataset(df10_old, sequence_size)
 
     Y1 = np.full(len(X1), 0).astype(np.float32)
@@ -349,7 +348,6 @@ if __name__ == "__main__":
     Y5_old = np.full(len(X5_old), 13).astype(np.float32)
     Y6_old = np.full(len(X6_old), 14).astype(np.float32)
     Y7_old = np.full(len(X7_old), 15).astype(np.float32)
-    Y8_old = np.full(len(X8_old), 16).astype(np.float32)
     Y10_old = np.full(len(X10_old), 17).astype(np.float32)
 
     # Create datasets for extra validation
@@ -434,11 +432,6 @@ if __name__ == "__main__":
     dev7_old_cut_labels = Y7_old[-200:]
     Y7_old = Y7_old[:-200]
     
-    dev8_old_cut_data = X8_old[-200:]
-    X8_old = X8_old[:-200]
-    dev8_old_cut_labels = Y8_old[-200:]
-    Y8_old = Y8_old[:-200]
-    
     dev10_old_cut_data = X10_old[-200:]
     X10_old = X10_old[:-200]
     dev10_old_cut_labels = Y10_old[-200:]
@@ -446,19 +439,18 @@ if __name__ == "__main__":
     
     holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev7_cut_data,
                                    dev8_cut_data, dev10_cut_data, dev10_p2_cut_data, dev1_old_cut_data, dev2_old_cut_data, dev3_old_cut_data, 
-                                   dev4_old_cut_data, dev5_old_cut_data, dev6_old_cut_data, dev7_old_cut_data, 
-                                   dev8_old_cut_data, dev10_old_cut_data), axis=0).astype(np.float32)
+                                   dev4_old_cut_data, dev5_old_cut_data, dev6_old_cut_data, dev7_old_cut_data, dev10_old_cut_data), axis=0).astype(np.float32)
     holdout_labels = np.concatenate((dev1_cut_labels, dev2_cut_labels, dev3_cut_labels, dev4_cut_labels, 
                                      dev5_cut_labels, dev7_cut_labels, dev8_cut_labels, dev10_cut_labels, dev10_p2_cut_labels, dev1_old_cut_labels, dev2_old_cut_labels, 
                                      dev3_old_cut_labels, dev4_old_cut_labels, dev5_old_cut_labels,
-                                     dev6_old_cut_labels, dev7_old_cut_labels, dev8_old_cut_labels, 
+                                     dev6_old_cut_labels, dev7_old_cut_labels,
                                      dev10_old_cut_labels), axis=0)
 
     # Concatenate data from different CSV files
     X_dataset = np.concatenate((X1, X2, X3, X4, X5, X7, X8, X10, X10_p2, X1_old, 
-                                X2_old, X3_old, X4_old, X5_old, X6_old, X7_old, X8_old, X10_old), axis=0)
+                                X2_old, X3_old, X4_old, X5_old, X6_old, X7_old, X10_old), axis=0)
     Y_dataset = np.concatenate((Y1, Y2, Y3, Y4, Y5, Y7, Y8, Y10, Y10_p2, Y1_old, 
-                                Y2_old, Y3_old, Y4_old, Y5_old, Y6_old, Y7_old, Y8_old, Y10_old), axis=0)
+                                Y2_old, Y3_old, Y4_old, Y5_old, Y6_old, Y7_old, Y10_old), axis=0)
 
     # Train and evaluate the model
     result, model = train_and_evaluate(X_dataset, Y_dataset)
