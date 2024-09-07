@@ -6,7 +6,7 @@ cd /ibex/user/nandhan/kaust_puf
 # SCP Commands
 scp Documents/KAUST\ Internship/kaust_puf/puf_classifier_v7.py ibex:/ibex/user/nandhan/kaust_puf
 scp Documents/KAUST\ Internship/kaust_puf/validation.py ibex:/ibex/user/nandhan/kaust_puf
-scp Documents/KAUST\ Internship/kaust_puf/jobscripts/sequence_sweep1.slurm ibex:/ibex/user/nandhan/kaust_puf/jobscripts
+scp Documents/KAUST\ Internship/kaust_puf/jobscripts/validation.slurm ibex:/ibex/user/nandhan/kaust_puf/jobscripts
 scp Documents/KAUST\ Internship/kaust_puf/gan_v1.py ibex:/ibex/user/nandhan/kaust_puf
 scp Documents/KAUST\ Internship/kaust_puf/vae_v1.py ibex:/ibex/user/nandhan/kaust_puf
 scp Documents/KAUST\ Internship/kaust_puf/sweep/puf_classifier_sequence_sweep.py ibex:/ibex/user/nandhan/kaust_puf/sweep

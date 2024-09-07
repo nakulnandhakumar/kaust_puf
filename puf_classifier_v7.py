@@ -229,7 +229,7 @@ def extra_validation_preds(model, test_data):
     with torch.no_grad():
         for i in range(len(test_data)):
             output = model(test_tensor[i].unsqueeze(0))
-            predicted = torch.round(torch.sigmoid(output))
+            _, predicted = torch.max(output, 1)
             predictions_test.append(predicted.item())
             
     # Convert predictions_test to a NumPy array
@@ -467,18 +467,18 @@ if __name__ == "__main__":
     
     # Generate confusion matrix with dimensions being the devices
     # Generate predictions for the holdout set
+    list_of_labels = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+    cm_label_mapping = {0: 'D0', 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D10', 
+                        10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16', 17: 'D17'}
+    cm_labels_str = [cm_label_mapping[label] for label in list_of_labels]
     preds = extra_validation_preds(model, holdout_data)
 
     # True labels for the holdout set
     labels = holdout_labels 
 
     # Generate confusion matrix for each set
-    cm = confusion_matrix(labels, preds, labels=labels)
+    cm = confusion_matrix(labels, preds, labels=list_of_labels)
 
     # Plotting and saving the confusion matrices
     save_directory = 'figures/confusion_matrices'
-    list_of_labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-    cm_label_mapping = {1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D10', 
-                        10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16', 17: 'D17'}
-    cm_labels_str = [cm_label_mapping[label] for label in list_of_labels]
-    plot_confusion_matrix(cm, "Confusion Matrix - Multiclass Model", "cm_multiclass_model.png", save_directory)
+    plot_confusion_matrix(cm, "Confusion Matrix - Multiclass Model", "cm_multiclass_model.png", save_directory) 
