@@ -134,15 +134,6 @@ df10_4 = pd.read_csv("puf_dataset_07_14/2Can-D10-50mA-long4.csv")
 df10 = pd.concat([df10_1, df10_2, df10_3, df10_4], axis=0)
 df10 = df10.reset_index(drop=True)
 df10_p2 = pd.read_csv("puf_dataset_07_14/p-2Can-D10-50mA.csv")
-df1_old = pd.read_csv("puf_dataset_07_08/Can-D1-50mA2.csv")
-df2_old = pd.read_csv("puf_dataset_07_08/Can-D2-50mA2.csv")
-df3_old = pd.read_csv("puf_dataset_07_08/Can-D3-50mA.csv")
-df4_old = pd.read_csv("puf_dataset_07_08/Can-D4-50mA.csv")
-df5_old = pd.read_csv("puf_dataset_07_08/Can-D5-50mA.csv")
-df6_old = pd.read_csv("puf_dataset_07_08/Can-D6-50mA.csv")
-df7_old = pd.read_csv("puf_dataset_07_08/Can-D7-50mA.csv")
-df8_old = pd.read_csv("puf_dataset_07_08/Can-D8-50mA.csv")
-df10_old = pd.read_csv("puf_dataset_07_08/Can-D10-50mA.csv")
 df50_point_1mA = pd.read_csv("puf_dataset_08_19/50.1mA.csv")
 df50_point_2mA = pd.read_csv("puf_dataset_08_19/50.2mA.csv")
 df50_point_3mA = pd.read_csv("puf_dataset_08_19/50.3mA.csv")
@@ -174,15 +165,6 @@ X7 = create_dataset(df7, sequence_size)
 X8 = create_dataset(df8, sequence_size)
 X10 = create_dataset(df10, sequence_size)
 X10_p2 = create_dataset(df10_4, sequence_size)
-X1_old = create_dataset(df1_old, sequence_size)
-X2_old = create_dataset(df2_old, sequence_size)
-X3_old = create_dataset(df3_old, sequence_size)
-X4_old = create_dataset(df4_old, sequence_size)
-X5_old = create_dataset(df5_old, sequence_size)
-X6_old = create_dataset(df6_old, sequence_size)
-X7_old = create_dataset(df7_old, sequence_size)
-X8_old = create_dataset(df8_old, sequence_size)
-X10_old = create_dataset(df10_old, sequence_size)
 X50_point_1mA = create_dataset(df50_point_1mA, sequence_size)
 X50_point_2mA = create_dataset(df50_point_2mA, sequence_size)
 X50_point_3mA = create_dataset(df50_point_3mA, sequence_size)
@@ -213,15 +195,6 @@ Y7 = np.ones(len(X7)).astype(np.float32)
 Y8 = np.zeros(len(X8)).astype(np.float32)
 Y10 = np.full(len(X10), 7).astype(np.float32)
 Y10_p2 = np.full(len(X10_p2), 8).astype(np.float32)
-Y1_old = np.full(len(X1_old), 9).astype(np.float32)
-Y2_old = np.full(len(X2_old), 10).astype(np.float32)
-Y3_old = np.full(len(X3_old), 11).astype(np.float32)
-Y4_old = np.full(len(X4_old), 12).astype(np.float32)
-Y5_old = np.full(len(X5_old), 13).astype(np.float32)
-Y6_old = np.full(len(X6_old), 14).astype(np.float32)
-Y7_old = np.full(len(X7_old), 15).astype(np.float32)
-Y8_old = np.full(len(X8_old), 16).astype(np.float32)
-Y10_old = np.full(len(X10_old), 17).astype(np.float32)
 Y50_point_1mA = np.zeros(len(X50_point_1mA)).astype(np.float32)
 Y50_point_2mA = np.zeros(len(X50_point_2mA)).astype(np.float32)
 Y50_point_3mA = np.zeros(len(X50_point_3mA)).astype(np.float32)
@@ -332,98 +305,6 @@ X7 = X7[:-1000]
 real_seen_dev_cut_labels_v5 = Y7[-1000:]
 Y7 = Y7[:-1000]
 
-# Make holdout dataset for the confusion matrix for the multiclass model v7
-# Cut data from seen devices 1,2,3,4,5,7,8 and see if the model correctly predicts the right device
-dev1_cut_data = X1[-200:]
-X1 = X1[:-200]
-dev1_cut_labels = Y1[-200:]
-Y1 = Y1[:-200]
-
-dev2_cut_data = X2[-200:]
-X2 = X2[:-200]
-dev2_cut_labels = Y2[-200:]
-Y2 = Y2[:-200]
-
-dev3_cut_data = X3[-200:]
-X3 = X3[:-200]
-dev3_cut_labels = Y3[-200:]
-Y3 = Y3[:-200]
-
-dev4_cut_data = X4[-200:]
-X4 = X4[:-200]
-dev4_cut_labels = Y4[-200:]
-Y4 = Y4[:-200]
-
-dev5_cut_data = X5[-200:]
-X5 = X5[:-200]
-dev5_cut_labels = Y5[-200:]
-Y5 = Y5[:-200]
-
-dev7_cut_data = X7[-200:]
-X7 = X7[:-200]
-dev7_cut_labels = Y7[-200:]
-Y7 = Y7[:-200]
-
-dev8_cut_data = X8[-200:]
-X8 = X8[:-200]
-dev8_cut_labels = Y8[-200:]
-Y8 = Y8[:-200]
-
-dev1_old_cut_data = X1_old[-200:]
-X1_old = X1_old[:-200]
-dev1_old_cut_labels = Y1_old[-200:]
-Y1_old = Y1_old[:-200]
-
-dev2_old_cut_data = X2_old[-200:]
-X2_old = X2_old[:-200]
-dev2_old_cut_labels = Y2_old[-200:]
-Y2_old = Y2_old[:-200]
-
-dev3_old_cut_data = X3_old[-200:]
-X3_old = X3_old[:-200]
-dev3_old_cut_labels = Y3_old[-200:]
-Y3_old = Y3_old[:-200]
-
-dev4_old_cut_data = X4_old[-200:]
-X4_old = X4_old[:-200]
-dev4_old_cut_labels = Y4_old[-200:]
-Y4_old = Y4_old[:-200]
-
-dev5_old_cut_data = X5_old[-200:]
-X5_old = X5_old[:-200]
-dev5_old_cut_labels = Y5_old[-200:]
-Y5_old = Y5_old[:-200]
-
-dev6_old_cut_data = X6_old[-200:]
-X6_old = X6_old[:-200]
-dev6_old_cut_labels = Y6_old[-200:]
-Y6_old = Y6_old[:-200]
-
-dev7_old_cut_data = X7_old[-200:]
-X7_old = X7_old[:-200]
-dev7_old_cut_labels = Y7_old[-200:]
-Y7_old = Y7_old[:-200]
-
-dev8_old_cut_data = X8_old[-200:]
-X8_old = X8_old[:-200]
-dev8_old_cut_labels = Y8_old[-200:]
-Y8_old = Y8_old[:-200]
-
-dev10_old_cut_data = X10_old[-200:]
-X10_old = X10_old[:-200]
-dev10_old_cut_labels = Y10_old[-200:]
-Y10_old = Y10_old[:-200]
-
-holdout_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, 
-                                dev8_cut_data, dev1_old_cut_data, dev2_old_cut_data, dev3_old_cut_data, 
-                                dev4_old_cut_data, dev5_old_cut_data, dev6_old_cut_data, dev7_old_cut_data, 
-                                dev8_old_cut_data, dev10_old_cut_data), axis=0).astype(np.float32)
-holdout_labels = np.concatenate((dev1_cut_labels, dev2_cut_labels, dev3_cut_labels, dev4_cut_labels, 
-                                    dev5_cut_labels, dev8_cut_labels, dev1_old_cut_labels, dev2_old_cut_labels, 
-                                    dev3_old_cut_labels, dev4_old_cut_labels, dev5_old_cut_labels, 
-                                    dev6_old_cut_labels, dev7_old_cut_labels, dev8_old_cut_labels, 
-                                    dev10_old_cut_labels), axis=0)
-
 # Prepare to start generating confusion matrices
 # Method to plot the confusion matrices
 def plot_confusion_matrix(cm, title, filename, save_dir, labels_str):
@@ -460,7 +341,7 @@ label_mapping = {0: 'Fake', 1: 'Real'}
 labels = [0, 1]
 labels_str = [label_mapping[label] for label in labels]
 
-multiclass_label_mapping = {0: 'D0', 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D10', 
+multiclass_label_mapping = {0: 'D0', 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D9', 
                     10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16', 17: 'D17'}
 labels_multiclass = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
 multiclass_labels_str = [multiclass_label_mapping[label] for label in labels_multiclass]
@@ -505,16 +386,3 @@ cm_fake_unseen_v5 = confusion_matrix(labels_fake_unseen_v5, preds_fake_unseen_v5
 plot_confusion_matrix(cm_real_v5, "Confusion Matrix - Real Signals", "cm_real_device_v5.png", save_directory, labels_str)
 plot_confusion_matrix(cm_fake_seen_v5, "Confusion Matrix - Fake Signals from Seen Devices", "cm_fake_seen_devices_v5.png", save_directory, labels_str)
 plot_confusion_matrix(cm_fake_unseen_v5, "Confusion Matrix - Fake Signals from Unseen Devices", "cm_fake_unseen_devices_v5.png", save_directory, labels_str)
-
-# Generate confusion matrix with dimensions being the devices for model v7
-# Generate predictions for the holdout set
-preds_v7 = extra_validation_preds_multiclass(model_v7, holdout_data)
-
-# True labels for the holdout set
-labels_v7 = holdout_labels 
-
-# Generate confusion matrix for each set
-cm = confusion_matrix(labels_v7, preds_v7, labels=labels)
-
-# Plotting and saving the confusion matrix
-plot_confusion_matrix(cm, "Confusion Matrix - Multiclass Model", "cm_multiclass_model.png", save_directory, multiclass_labels_str) 
