@@ -317,20 +317,24 @@ def plot_confusion_matrix(cm, title, filename, save_dir, labels_str):
     print(f"Confusion Matrix: {cm}")
     print(f"Confusion Matrix Shape: {cm.shape}")
     
-    # Plot the confusion matrix with custom labels
+    # Plot the confusion matrix with larger annotations and axis labels
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
-                xticklabels=labels_str, yticklabels=labels_str, vmin=vmin, vmax=vmax)
+                xticklabels=labels_str, yticklabels=labels_str, vmin=vmin, vmax=vmax,
+                annot_kws={"size": 14}, 
+                linewidths=0.5, linecolor='black')
     
-    plt.title(title)
-    plt.xlabel('Predicted')
-    plt.ylabel('Actual')
+    # Set the title and axis labels with larger font size
+    plt.title(title, fontsize=18)
+    plt.xlabel('Predicted', fontsize=16)
+    plt.ylabel('Actual', fontsize=16)
     
-    # Ensure the save directory exists
-    os.makedirs(save_dir, exist_ok=True)
+    # Adjust the tick labels size
+    plt.xticks(fontsize=14)
+    plt.yticks(fontsize=14)
     
     # Save the figure as a PNG file
     file_path = os.path.join(save_dir, filename)
-    plt.savefig(file_path)
+    plt.savefig(file_path, bbox_inches='tight')
     plt.close()
 
 # Define the directory where the PNGs will be saved
