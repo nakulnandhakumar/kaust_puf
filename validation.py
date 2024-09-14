@@ -108,9 +108,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Device: {device}")
 
 # Load in puf_classifier_v5 and v6 PyTorch model
-model_v5 = torch.load("saved_models/puf_classifier_v5.pth", map_location=device)
-model_v6 = torch.load("saved_models/puf_classifier_v6.pth", map_location=device)
-model_v7 = torch.load("saved_models/puf_classifier_v7.pth", map_location=device)
+model_singlechallenge = torch.load("saved_models/puf_classifier_v5.pth", map_location=device)
+model_multichallenge = torch.load("saved_models/puf_classifier_v6.pth", map_location=device)
 
 
 # Load in all data required for ezxtra validation and confusion matrix generation
@@ -232,8 +231,8 @@ Y50_point_4mA = Y50_point_4mA[:-200]
 X50_point_5mA_data = X50_point_5mA[-200:]
 X50_point_5mA = X50_point_5mA[:-200]
 Y50_point_5mA = Y50_point_5mA[:-200]
-fake_seen_dev_cut_data_v6 = np.concatenate((X50_point_1mA_data, X50_point_2mA_data, X50_point_3mA_data, X50_point_4mA_data, X50_point_5mA_data), axis=0).astype(np.float32)
-fake_seen_dev_cut_labels_v6 = np.zeros(len(fake_seen_dev_cut_data_v6)).astype(np.float32)
+fake_seen_dev_cut_data_multichallenge = np.concatenate((X50_point_1mA_data, X50_point_2mA_data, X50_point_3mA_data, X50_point_4mA_data, X50_point_5mA_data), axis=0).astype(np.float32)
+fake_seen_dev_cut_labels_multichallenge = np.zeros(len(fake_seen_dev_cut_data_multichallenge)).astype(np.float32)
 
 # Cut data from unseen fake currents 51, 52, 53, 54, 55 and see if the model recognizes the data as fake
 X51mA_data = X51mA[-200:]
@@ -251,13 +250,13 @@ Y54mA = Y54mA[:-200]
 X55mA_data = X55mA[-200:]
 X55mA = X55mA[:-200]
 Y55mA = Y55mA[:-200]
-fake_unseen_dev_cut_data_v6 = np.concatenate((X51mA_data, X52mA_data, X53mA_data, X54mA_data, X55mA_data), axis=0).astype(np.float32)
-fake_unseen_dev_cut_labels_v6 = np.zeros(len(fake_unseen_dev_cut_data_v6)).astype(np.float32)
+fake_unseen_dev_cut_data_multichallenge = np.concatenate((X51mA_data, X52mA_data, X53mA_data, X54mA_data, X55mA_data), axis=0).astype(np.float32)
+fake_unseen_dev_cut_labels_multichallenge = np.zeros(len(fake_unseen_dev_cut_data_multichallenge)).astype(np.float32)
 
 # Cut data from real seen device 0 current 50mA and see if the model recognizes the data as real
-real_seen_dev_cut_data_v6 = X0[-1000:]
+real_seen_dev_cut_data_multichallenge = X0[-1000:]
 X0 = X0[:-1000]
-real_seen_dev_cut_labels_v6 = Y0[-1000:]
+real_seen_dev_cut_labels_multichallenge = Y0[-1000:]
 Y0 = Y0[:-1000]
 
 # Create datasets for extra validation for single challenge current model v5
@@ -277,8 +276,8 @@ Y4 = Y4[:-200]
 dev8_cut_data = X8[-200:]
 X8 = X8[:-200]
 Y8 = Y8[:-200]
-fake_seen_dev_cut_data_v5 = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev8_cut_data), axis=0).astype(np.float32)
-fake_seen_dev_cut_labels_v5 = np.zeros(len(fake_seen_dev_cut_data_v5)).astype(np.float32)
+fake_seen_dev_cut_data_singlechallenge = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev8_cut_data), axis=0).astype(np.float32)
+fake_seen_dev_cut_labels_singlechallenge = np.zeros(len(fake_seen_dev_cut_data_singlechallenge)).astype(np.float32)
 
 # Take fake unseen device data from device 5, and from first data set, dev 1, 2, 3, 4
 unseen_dev5_cut_data = X5[-200:]
@@ -296,13 +295,13 @@ Y3_unseen = Y3_unseen[:-200]
 dev4_unseen_cut_data = X4_unseen[-200:]
 X4_unseen = X4_unseen[:-200]
 Y4_unseen = Y4_unseen[:-200]
-fake_unseen_dev_cut_data_v5 = np.concatenate((unseen_dev5_cut_data, dev1_unseen_cut_data, dev2_unseen_cut_data, dev3_unseen_cut_data, dev4_unseen_cut_data), axis=0).astype(np.float32)
-fake_unseen_dev_cut_labels_v5 = np.zeros(len(fake_unseen_dev_cut_data_v5)).astype(np.float32)
+fake_unseen_dev_cut_data_singlechallenge = np.concatenate((unseen_dev5_cut_data, dev1_unseen_cut_data, dev2_unseen_cut_data, dev3_unseen_cut_data, dev4_unseen_cut_data), axis=0).astype(np.float32)
+fake_unseen_dev_cut_labels_singlechallenge = np.zeros(len(fake_unseen_dev_cut_data_singlechallenge)).astype(np.float32)
 
 # Also reserve some data from device 7 for testing, see if it recognizes the real device
-real_seen_dev_cut_data_v5 = X7[-1000:]
+real_seen_dev_cut_data_singlechallenge = X7[-1000:]
 X7 = X7[:-1000]
-real_seen_dev_cut_labels_v5 = Y7[-1000:]
+real_seen_dev_cut_labels_singlechallenge = Y7[-1000:]
 Y7 = Y7[:-1000]
 
 # Prepare to start generating confusion matrices
@@ -345,48 +344,48 @@ label_mapping = {0: 'Fake', 1: 'Real'}
 labels = [0, 1]
 labels_str = [label_mapping[label] for label in labels]
 
-multiclass_label_mapping = {0: 'D0', 1: 'D1', 2: 'D2', 3: 'D3', 4: 'D4', 5: 'D5', 6: 'D6', 7: 'D7', 8: 'D8', 9: 'D9', 
-                    10: 'D10', 11: 'D11', 12: 'D12', 13: 'D13', 14: 'D14', 15: 'D15', 16: 'D16', 17: 'D17'}
-labels_multiclass = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
-multiclass_labels_str = [multiclass_label_mapping[label] for label in labels_multiclass]
-
 # Generate confusion matrices for each individual set of validation data for mutliple currents version (v6)
 # Generate predictions for each test set
-preds_real_v6 = extra_validation_preds(model_v6, real_seen_dev_cut_data_v6)
-preds_fake_seen_v6 = extra_validation_preds(model_v6, fake_seen_dev_cut_data_v6)
-preds_fake_unseen_v6 = extra_validation_preds(model_v6, fake_unseen_dev_cut_data_v6)
+preds_real_multichallenge = extra_validation_preds(model_multichallenge, real_seen_dev_cut_data_multichallenge)
+preds_fake_seen_multichallenge = extra_validation_preds(model_multichallenge, fake_seen_dev_cut_data_multichallenge)
+preds_unseen_multichallenge = extra_validation_preds(model_multichallenge, fake_unseen_dev_cut_data_multichallenge)
 
 # True labels for the test sets
-labels_real_v6 = real_seen_dev_cut_labels_v6  # Real unseen signals (should be 1s)
-labels_fake_seen_v6 = fake_seen_dev_cut_labels_v6  # Fake signals from a seen device (should be 0s)
-labels_fake_unseen_v6 = fake_unseen_dev_cut_labels_v6  # Fake signals from an unseen device (should be 0s)
+labels_real_multichallenge = real_seen_dev_cut_labels_multichallenge  # Real unseen signals (should be 1s)
+labels_fake_seen_multichallenge = fake_seen_dev_cut_labels_multichallenge  # Fake signals from a seen device (should be 0s)
+labels_unseen_multichallenge = fake_unseen_dev_cut_labels_multichallenge  # Fake signals from an unseen device (should be 0s)
 
-cm_real_v6 = confusion_matrix(labels_real_v6, preds_real_v6, labels=labels)
-cm_fake_seen_v6 = confusion_matrix(labels_fake_seen_v6, preds_fake_seen_v6, labels=labels)
-cm_fake_unseen_v6 = confusion_matrix(labels_fake_unseen_v6, preds_fake_unseen_v6, labels=labels)
+# Combine fake seen and real data for confusion matrix
+preds_seen_multichallenge = np.concatenate((preds_fake_seen_multichallenge, preds_real_multichallenge), axis=0)
+labels_seen_multichallenge = np.concatenate((labels_fake_seen_multichallenge, labels_real_multichallenge), axis=0)
+
+# Generate confusion matrices
+cm_seen_multichallenge = confusion_matrix(labels_seen_multichallenge, preds_seen_multichallenge, labels=labels)
+cm_unseen_multichallenge = confusion_matrix(labels_unseen_multichallenge, preds_unseen_multichallenge, labels=labels)
 
 # Plotting and saving the confusion matrices
-plot_confusion_matrix(cm_real_v6, "Confusion Matrix - Real Signals", "cm_real_current_v6.png", save_directory, labels_str)
-plot_confusion_matrix(cm_fake_seen_v6, "Confusion Matrix - Fake Signals from Seen Currents", "cm_fake_seen_currents_v6.png", save_directory, labels_str)
-plot_confusion_matrix(cm_fake_unseen_v6, "Confusion Matrix - Fake Signals from Unseen Currents", "cm_fake_unseen_currents_v6.png", save_directory, labels_str)
+plot_confusion_matrix(cm_seen_multichallenge, "Confusion Matrix - Signals from Seen Currents", "cm_seen_multichallenge.png", save_directory, labels_str)
+plot_confusion_matrix(cm_unseen_multichallenge, "Confusion Matrix - Signals from Unseen Currents", "cm_unseen_multichallenge.png", save_directory, labels_str)
 
 # Generate confusion matrices for each individual set of validation data for single current version (v5)
 # Generate predictions for each test set
-preds_real_v5 = extra_validation_preds(model_v5, real_seen_dev_cut_data_v5)
-preds_fake_seen_v5 = extra_validation_preds(model_v5, fake_seen_dev_cut_data_v5)
-preds_fake_unseen_v5 = extra_validation_preds(model_v5, fake_unseen_dev_cut_data_v5)
+preds_real_singlechallenge = extra_validation_preds(model_singlechallenge, real_seen_dev_cut_data_singlechallenge)
+preds_fake_seen_singlechallenge = extra_validation_preds(model_singlechallenge, fake_seen_dev_cut_data_singlechallenge)
+preds_unseen_singlechallenge = extra_validation_preds(model_singlechallenge, fake_unseen_dev_cut_data_singlechallenge)
 
 # True labels for the test sets
-labels_real_v5 = real_seen_dev_cut_labels_v5  # Real unseen signals (should be 1s)
-labels_fake_seen_v5 = fake_seen_dev_cut_labels_v5  # Fake signals from a seen device (should be 0s)
-labels_fake_unseen_v5 = fake_unseen_dev_cut_labels_v5  # Fake signals from an unseen device (should be 0s)
+labels_real_singlechallenge = real_seen_dev_cut_labels_singlechallenge  # Real unseen signals (should be 1s)
+labels_fake_seen_singlechallenge = fake_seen_dev_cut_labels_singlechallenge  # Fake signals from a seen device (should be 0s)
+labels_unseen_singlechallenge = fake_unseen_dev_cut_labels_singlechallenge  # Fake signals from an unseen device (should be 0s)
+
+# Combine fake seen and real data for confusion matrix
+preds_seen_singlechallenge = np.concatenate((preds_fake_seen_singlechallenge, preds_real_singlechallenge), axis=0)
+labels_seen_singlechallenge = np.concatenate((labels_fake_seen_singlechallenge, labels_real_singlechallenge), axis=0)
 
 # Generate confusion matrix for each set
-cm_real_v5 = confusion_matrix(labels_real_v5, preds_real_v5, labels=labels)
-cm_fake_seen_v5 = confusion_matrix(labels_fake_seen_v5, preds_fake_seen_v5, labels=labels)
-cm_fake_unseen_v5 = confusion_matrix(labels_fake_unseen_v5, preds_fake_unseen_v5, labels=labels)
+cm_seen_singlechallenge = confusion_matrix(labels_seen_singlechallenge, preds_seen_singlechallenge, labels=labels)
+cm_unseen_singlechallenge = confusion_matrix(labels_unseen_singlechallenge, preds_unseen_singlechallenge, labels=labels)
 
 # Plotting and saving the confusion matrices
-plot_confusion_matrix(cm_real_v5, "Confusion Matrix - Real Signals", "cm_real_device_v5.png", save_directory, labels_str)
-plot_confusion_matrix(cm_fake_seen_v5, "Confusion Matrix - Fake Signals from Seen Devices", "cm_fake_seen_devices_v5.png", save_directory, labels_str)
-plot_confusion_matrix(cm_fake_unseen_v5, "Confusion Matrix - Fake Signals from Unseen Devices", "cm_fake_unseen_devices_v5.png", save_directory, labels_str)
+plot_confusion_matrix(cm_seen_singlechallenge, "Confusion Matrix - Signals from Seen Devices", "cm_seen_singlechallenge.png", save_directory, labels_str)
+plot_confusion_matrix(cm_unseen_singlechallenge, "Confusion Matrix - Signals from Unseen Devices", "cm_unseen_singlechallenge.png", save_directory, labels_str)
