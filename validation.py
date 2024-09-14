@@ -313,23 +313,19 @@ def plot_confusion_matrix(cm, title, filename, save_dir, labels_str):
     vmin = 0
     vmax = cm.max()
     
-    print(f"Confusion Matrix: {cm}")
-    print(f"Confusion Matrix Shape: {cm.shape}")
-    
     # Plot the confusion matrix with larger annotations and axis labels
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', cbar=False,
                 xticklabels=labels_str, yticklabels=labels_str, vmin=vmin, vmax=vmax,
-                annot_kws={"size": 14}, 
-                linewidths=0.5, linecolor='black')
+                annot_kws={"size": 14})
     
     # Set the title and axis labels with larger font size
-    plt.title(title, fontsize=18)
-    plt.xlabel('Predicted', fontsize=16)
-    plt.ylabel('Actual', fontsize=16)
+    plt.title(title, fontsize=16)
+    plt.xlabel('Predicted', fontsize=14)
+    plt.ylabel('Actual', fontsize=14)
     
     # Adjust the tick labels size
-    plt.xticks(fontsize=14)
-    plt.yticks(fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
     
     # Save the figure as a PNG file
     file_path = os.path.join(save_dir, filename)

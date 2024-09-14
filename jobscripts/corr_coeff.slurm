@@ -5,7 +5,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --time=07:00:00
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=64G
+#SBATCH --mem=256G
 #SBATCH --gpus=4
 #SBATCH --gpus-per-node=4
 #SBATCH --constraint=v100&gpu_ai
