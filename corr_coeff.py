@@ -74,28 +74,32 @@ X17 = create_dataset(df10_old, 10000)
 
 # Plot correlation matrix among sequences within one device
 # Take the first 50 data points
-X1_half = X1[:50]
-corr1 = np.corrcoef(X1_half, rowvar=False)
+corr_coeff_within_dev = X1[:1000]
+num_sequences = corr_coeff_within_dev.shape[0]
+corr_coeff_within_dev_mat = np.corrcoef(corr_coeff_within_dev, rowvar=True)
 
 # Set up the figure with a larger size
 plt.figure(figsize=(10, 8))
 
 # Plot the correlation matrix as a heatmap
-sns.heatmap(corr1, 
+sns.heatmap(corr_coeff_within_dev_mat, 
             cmap='coolwarm',  # Use a visually appealing colormap
-            annot=True,       # Display values
-            fmt=".2f",        # Limit annotation to 2 decimal places
-            xticklabels=np.arange(1, 51),  # Number sequences on the x-axis
-            yticklabels=np.arange(1, 51),  # Number sequences on the y-axis
-            linewidths=0.5,   # Add gridlines between cells for clarity
-            linecolor='white',  # White gridlines look clean
-            cbar_kws={'shrink': 0.8},  # Shrink the colorbar slightly
-            annot_kws={'size': 8}  # Font size for annotations
+            annot=False,       # Do not display values
+            xticklabels=False,
+            yticklabels=False,  # Number sequences on the y-axis
+            cbar_kws={'shrink': 0.8}  # Shrink the colorbar slightly
            )
 
-# Rotate x-axis labels for readability and adjust tick label font size
-plt.xticks(rotation=90, fontsize=10)
-plt.yticks(rotation=0, fontsize=10)
+# Set spacing of tick marks
+spacing = num_sequences // 10
+tick_positions = np.arange(0, num_sequences, spacing)
+
+# Dynamically set ticks and label appearance
+plt.xticks(tick_positions, tick_positions, rotation=45, fontsize=10)  # Rotate x-axis labels
+plt.yticks(tick_positions, tick_positions, fontsize=10)
+
+# Invert Y-axis to ensure 0 starts from the bottom
+plt.gca().invert_yaxis()
 
 plt.title('Correlation Matrix for Sequences in Device 1', fontsize=14, pad=20)
 
