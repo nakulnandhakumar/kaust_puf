@@ -106,6 +106,54 @@ plt.title('Correlation Matrix for Sequences in Device 1', fontsize=14, pad=20)
 # Save the figure
 plt.savefig('figures/corr_coeff/correlation_matrix_intradev1.png', dpi=300, bbox_inches='tight')
 
-# Plot correlation matrix among sequences across all devices
-# Take one random sequence from each device
+# Plot correlation matrix among sequences across devices
+dev1_cut_data = X1[-200:]
+dev2_cut_data = X2[-200:]
+dev3_cut_data = X3[-200:]
+dev4_cut_data = X4[-200:]
+dev5_cut_data = X5[-200:]
+dev7_cut_data = X7[-200:]
+dev8_cut_data = X8[-200:]
+dev10_cut_data = X10[-200:]
+dev11_cut_data = X11[-200:]
+dev12_cut_data = X12[-200:]
+dev13_cut_data = X13[-200:]
+dev14_cut_data = X14[-200:]
+dev15_cut_data = X15[-200:]
+dev16_cut_data = X16[-200:]
+dev17_cut_data = X17[-200:]
 
+# Concatenate the data from all devices
+acrossdev_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev7_cut_data, dev8_cut_data, dev10_cut_data, dev11_cut_data, dev12_cut_data, dev13_cut_data, dev14_cut_data, dev15_cut_data, dev16_cut_data, dev17_cut_data), axis=0)
+num_sequences_acrossdev = acrossdev_data.shape[0]
+
+# Compute correlation matrix
+corr_coeff_across_dev_mat = np.corrcoef(acrossdev_data, rowvar=True)
+
+# Set up the figure with a larger size
+plt.figure(figsize=(10, 8))
+
+# Plot the correlation matrix as a heatmap
+sns.heatmap(corr_coeff_across_dev_mat, 
+            cmap='coolwarm',  # Use a visually appealing colormap
+            annot=False,       # Do not display values
+            xticklabels=False,
+            yticklabels=False,  # Number sequences on the y-axis
+            cbar_kws={'shrink': 0.8}  # Shrink the colorbar slightly
+           )
+
+# Set spacing of tick marks
+spacing_acrossdev = num_sequences_acrossdev // 10
+tick_positions_acrossdev = np.arange(0, num_sequences_acrossdev, spacing_acrossdev)
+
+# Dynamically set ticks and label appearance
+plt.xticks(tick_positions_acrossdev, tick_positions_acrossdev, rotation=45, fontsize=10)  # Rotate x-axis labels
+plt.yticks(tick_positions_acrossdev, tick_positions_acrossdev, fontsize=10)
+
+# Invert Y-axis to ensure 0 starts from the bottom
+plt.gca().invert_yaxis()
+
+plt.title('Correlation Matrix for Sequences Across All Devices', fontsize=14, pad=20)
+
+# Save the figure
+plt.savefig('figures/corr_coeff/correlation_matrix_acrossdev.png', dpi=300, bbox_inches='tight')
