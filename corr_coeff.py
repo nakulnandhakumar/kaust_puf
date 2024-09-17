@@ -107,21 +107,21 @@ plt.title('Correlation Matrix for Sequences in Device 1', fontsize=14, pad=20)
 plt.savefig('figures/corr_coeff/correlation_matrix_intradev1.png', dpi=300, bbox_inches='tight')
 
 # Plot correlation matrix among sequences across devices
-dev1_cut_data = X1[-200:]
-dev2_cut_data = X2[-200:]
-dev3_cut_data = X3[-200:]
-dev4_cut_data = X4[-200:]
-dev5_cut_data = X5[-200:]
-dev7_cut_data = X7[-200:]
-dev8_cut_data = X8[-200:]
-dev10_cut_data = X10[-200:]
-dev11_cut_data = X11[-200:]
-dev12_cut_data = X12[-200:]
-dev13_cut_data = X13[-200:]
-dev14_cut_data = X14[-200:]
-dev15_cut_data = X15[-200:]
-dev16_cut_data = X16[-200:]
-dev17_cut_data = X17[-200:]
+dev1_cut_data = (X1[-1:])
+dev2_cut_data = (X2[-1:])
+dev3_cut_data = (X3[-1:])
+dev4_cut_data = (X4[-1:])
+dev5_cut_data = (X5[-1:])
+dev7_cut_data = (X7[-1:])
+dev8_cut_data = (X8[-1:])
+dev10_cut_data = (X10[-1:])
+dev11_cut_data = (X11[-1:])
+dev12_cut_data = (X12[-1:])
+dev13_cut_data = (X13[-1:])
+dev14_cut_data = (X14[-1:])
+dev15_cut_data = (X15[-1:])
+dev16_cut_data = (X16[-1:])
+dev17_cut_data = (X17[-1:])
 
 # Concatenate the data from all devices
 acrossdev_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev7_cut_data, dev8_cut_data, dev10_cut_data, dev11_cut_data, dev12_cut_data, dev13_cut_data, dev14_cut_data, dev15_cut_data, dev16_cut_data, dev17_cut_data), axis=0)
