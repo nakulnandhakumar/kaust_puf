@@ -128,6 +128,9 @@ dev17_cut_data = (X17[-1:])
 # Concatenate the data from all devices
 acrossdev_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev6_cut_data, dev7_cut_data, dev8_cut_data, dev9_cut_data, dev10_cut_data, dev11_cut_data, dev12_cut_data, dev13_cut_data, dev14_cut_data, dev15_cut_data, dev16_cut_data, dev17_cut_data), axis=0)
 num_sequences_acrossdev = acrossdev_data.shape[0]
+device_labels = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11', 'D12', 'D13', 'D14', 'D15', 'D16', 'D17']
+num_sequences_per_device = acrossdev_data.shape[0] // len(device_labels)
+full_labels = [label for label in device_labels for _ in range(num_sequences_per_device)]
 
 # Compute correlation matrix
 corr_coeff_across_dev_mat = np.corrcoef(acrossdev_data, rowvar=True)
@@ -137,20 +140,16 @@ plt.figure(figsize=(10, 8))
 
 # Plot the correlation matrix as a heatmap
 sns.heatmap(corr_coeff_across_dev_mat, 
-            cmap='coolwarm',  # Use a visually appealing colormap
+            cmap='Blues',  # Use a visually appealing colormap
             annot=False,       # Do not display values
-            xticklabels=False,
-            yticklabels=False,  # Number sequences on the y-axis
+            xticklabels=full_labels,
+            yticklabels=full_labels,  # Number sequences on the y-axis
             cbar_kws={'shrink': 0.8}  # Shrink the colorbar slightly
            )
 
-# Set spacing of tick marks
-spacing_acrossdev = num_sequences_acrossdev // 10
-tick_positions_acrossdev = np.arange(0, num_sequences_acrossdev, spacing_acrossdev)
-
 # Dynamically set ticks and label appearance
-plt.xticks(tick_positions_acrossdev, tick_positions_acrossdev, rotation=45, fontsize=10)  # Rotate x-axis labels
-plt.yticks(tick_positions_acrossdev, tick_positions_acrossdev, fontsize=10)
+plt.xticks(rotation=45, fontsize=10)  # Rotate x-axis labels
+plt.yticks(fontsize=10)
 
 # Invert Y-axis to ensure 0 starts from the bottom
 plt.gca().invert_yaxis()
