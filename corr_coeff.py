@@ -87,7 +87,8 @@ sns.heatmap(corr_coeff_within_dev_mat,
             annot=False,       # Do not display values
             xticklabels=False,
             yticklabels=False,  # Number sequences on the y-axis
-            cbar_kws={'shrink': 0.8}  # Shrink the colorbar slightly
+            cbar_kws={'shrink': 0.8},  # Shrink the colorbar slightly
+            fontfamily='Arial'
            )
 
 # Set spacing of tick marks
@@ -95,13 +96,11 @@ spacing = num_sequences // 10
 tick_positions = np.arange(0, num_sequences, spacing)
 
 # Dynamically set ticks and label appearance
-plt.xticks(tick_positions, tick_positions, rotation=45, fontsize=10)  # Rotate x-axis labels
-plt.yticks(tick_positions, tick_positions, fontsize=10)
+plt.xticks(tick_positions, tick_positions, rotation=45, fontsize=20, fontfamily='Arial')  # Rotate x-axis labels
+plt.yticks(tick_positions, tick_positions, fontsize=20, fontfamily='Arial')
 
 # Invert Y-axis to ensure 0 starts from the bottom
 plt.gca().invert_yaxis()
-
-plt.title('Correlation Matrix for Sequences in Device 1', fontsize=14, pad=20)
 
 # Save the figure
 plt.savefig('figures/corr_coeff/correlation_matrix_intradev1.png', dpi=300, bbox_inches='tight')
@@ -144,17 +143,15 @@ sns.heatmap(corr_coeff_across_dev_mat,
             annot=False,       # Do not display values
             xticklabels=full_labels,
             yticklabels=full_labels,  # Number sequences on the y-axis
-            cbar_kws={'shrink': 0.8}  # Shrink the colorbar slightly
+            cbar_kws={'shrink': 0.8},  # Shrink the colorbar slightly
            )
 
 # Dynamically set ticks and label appearance
-plt.xticks(rotation=45, fontsize=10)  # Rotate x-axis labels
-plt.yticks(fontsize=10)
+plt.xticks(rotation=45, fontsize=20, fontfamily='Arial')  # Rotate x-axis labels
+plt.yticks(fontsize=20)
 
 # Invert Y-axis to ensure 0 starts from the bottom
 plt.gca().invert_yaxis()
-
-plt.title('Correlation Matrix for Sequences Across All Devices', fontsize=14, pad=20)
 
 # Save the figure
 plt.savefig('figures/corr_coeff/correlation_matrix_acrossdev.png', dpi=300, bbox_inches='tight')
