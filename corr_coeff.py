@@ -112,8 +112,10 @@ dev2_cut_data = (X2[-1:])
 dev3_cut_data = (X3[-1:])
 dev4_cut_data = (X4[-1:])
 dev5_cut_data = (X5[-1:])
+dev6_cut_data = (X6[-1:])
 dev7_cut_data = (X7[-1:])
 dev8_cut_data = (X8[-1:])
+dev9_cut_data = (X9[-1:])
 dev10_cut_data = (X10[-1:])
 dev11_cut_data = (X11[-1:])
 dev12_cut_data = (X12[-1:])
@@ -124,7 +126,7 @@ dev16_cut_data = (X16[-1:])
 dev17_cut_data = (X17[-1:])
 
 # Concatenate the data from all devices
-acrossdev_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev7_cut_data, dev8_cut_data, dev10_cut_data, dev11_cut_data, dev12_cut_data, dev13_cut_data, dev14_cut_data, dev15_cut_data, dev16_cut_data, dev17_cut_data), axis=0)
+acrossdev_data = np.concatenate((dev1_cut_data, dev2_cut_data, dev3_cut_data, dev4_cut_data, dev5_cut_data, dev6_cut_data, dev7_cut_data, dev8_cut_data, dev9_cut_data, dev10_cut_data, dev11_cut_data, dev12_cut_data, dev13_cut_data, dev14_cut_data, dev15_cut_data, dev16_cut_data, dev17_cut_data), axis=0)
 num_sequences_acrossdev = acrossdev_data.shape[0]
 
 # Compute correlation matrix
