@@ -77,8 +77,7 @@ This repository relies on several Python libraries for data processing, visualiz
 | `scipy`       | Scientific computing library with modules for optimization, integration, and statistics. |
 | `seaborn`     | Statistical data visualization library built on top of matplotlib.         |
 
-### Installation
-It is recommended to set up a virtual environment and conduct all project work inside. Install all required dependencies inside virtual environment via `pip`:
+**Installation:** It is recommended to set up a virtual environment and conduct all project work inside. Install all required dependencies inside virtual environment via `pip`:
 ```bash
 pip install numpy matplotlib pandas torch scipy seaborn
 ```
