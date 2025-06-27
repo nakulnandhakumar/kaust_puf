@@ -1,13 +1,5 @@
 #!/ibex/user/nandhan/mambaforge/bin/python3
 
-'''
-Header: vae.py
-The code snippet below is a Variational Autoencoder (VAE) model that is used to generate synthetic data
-replicating chaotic 1D laser signals input to the model. The VAE will serve as the
-basis for a generator in a Generative adversarial training framework model meant to generate
-data for adversial training of the puf_classifier model.
-'''
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,7 +7,6 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
 import pandas as pd
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 import csv
 import random
 import umap
@@ -116,6 +107,155 @@ class VAE(nn.Module):
         x_reconstructed = self.decoder(z_decoded)
         return x_reconstructed, mu, logvar
 
+
+# ----------------------------- Original task --------------------------------
+
+def load_original_task_data(device, sequence_length=10000):
+    def create_segments_like_original(df, seq_len):
+        arr = df.iloc[:, 0].to_numpy(dtype=np.float32)
+        arr = np.nan_to_num(arr)
+        n = len(arr) // seq_len
+        segments = np.array([
+            arr[i * seq_len:(i + 1) * seq_len]
+            for i in range(n)
+        ], dtype=np.float32)
+        return segments[:, None, :]
+
+    file_info = [
+        ("Demo_Nontarget_1.csv", 0, 0.0),
+        ("Demo_Nontarget_2.csv", 1, 0.0),
+        ("Demo_Target.csv", 2, 1.0)
+    ]
+
+    train_segments = []
+    train_multi_labels = []
+    train_binary_labels = []
+    val_segments = []
+    val_multi_labels = []
+    val_binary_labels = []
+
+    TRAIN_VAL_RATIO = 0.7
+
+    print("Loading original task data using file-by-file approach...")
+
+    for path, multi_label, binary_label in file_info:
+        try:
+            print(f"Processing {path}...")
+            df = pd.read_csv(path, usecols=[4])
+            segs = create_segments_like_original(df, sequence_length)
+
+            if len(segs) == 0:
+                print(f"  Warning: No segments created from {path}")
+                del df
+                continue
+            mn, mx = segs.min(), segs.max()
+            if mx - mn > 0:
+                segs = 2 * (segs - mn) / (mx - mn) - 1
+            else:
+                print(f"  Warning: Constant values in {path}, skipping normalization")
+            n = len(segs)
+            split = int(TRAIN_VAL_RATIO * n)
+
+            if split > 0:
+                train_segments.append(segs[:split])
+                train_multi_labels.append(np.full(split, multi_label, dtype=np.int64))
+                train_binary_labels.append(np.full(split, binary_label, dtype=np.float32))
+
+            if n - split > 0:
+                val_segments.append(segs[split:])
+                val_multi_labels.append(np.full(n - split, multi_label, dtype=np.int64))
+                val_binary_labels.append(np.full(n - split, binary_label, dtype=np.float32))
+
+            print(f"  Loaded {len(segs)} segments, train: {split}, val: {n - split}")
+
+            del df, segs
+
+        except Exception as e:
+            print(f"  Error loading {path}: {e}")
+            continue
+
+    if not train_segments and not val_segments:
+        raise RuntimeError("No data could be loaded from any file")
+    if train_segments:
+        X_train = np.vstack(train_segments)
+        Y_multi_train = np.concatenate(train_multi_labels)
+        Y_binary_train = np.concatenate(train_binary_labels)
+    else:
+        X_train = np.array([]).reshape(0, 1, sequence_length)
+        Y_multi_train = np.array([])
+        Y_binary_train = np.array([])
+
+    if val_segments:
+        X_val = np.vstack(val_segments)
+        Y_multi_val = np.concatenate(val_multi_labels)
+        Y_binary_val = np.concatenate(val_binary_labels)
+    else:
+        X_val = np.array([]).reshape(0, 1, sequence_length)
+        Y_multi_val = np.array([])
+        Y_binary_val = np.array([])
+
+    del train_segments, train_multi_labels, train_binary_labels
+    del val_segments, val_multi_labels, val_binary_labels
+
+    print(f"Total: Train {len(X_train)}, Val {len(X_val)}")
+    if len(X_val) > 0:
+        dataset = TensorDataset(
+            torch.tensor(X_val, dtype=torch.float32),
+            torch.tensor(Y_multi_val, dtype=torch.long),
+            torch.tensor(Y_binary_val, dtype=torch.float32)
+        )
+        del X_val, Y_multi_val, Y_binary_val
+    elif len(X_train) > 0:
+        print("Warning: No validation data, using subset of training data for evaluation")
+        subset_size = min(1000, len(X_train))
+        indices = np.random.choice(len(X_train), subset_size, replace=False)
+        X_subset = X_train[indices]
+        Y_multi_subset = Y_multi_train[indices]
+        Y_binary_subset = Y_binary_train[indices]
+
+        dataset = TensorDataset(
+            torch.tensor(X_subset, dtype=torch.float32),
+            torch.tensor(Y_multi_subset, dtype=torch.long),
+            torch.tensor(Y_binary_subset, dtype=torch.float32)
+        )
+        del X_subset, Y_multi_subset, Y_binary_subset
+    else:
+        raise RuntimeError("No data available for evaluation")
+
+    if 'X_train' in locals():
+        del X_train, Y_multi_train, Y_binary_train
+
+    test_loader = DataLoader(dataset, batch_size=32, shuffle=False)
+    print("Original task data loaded successfully")
+    return test_loader
+
+
+def evaluate_original_task(cnn_model, test_loader, device):
+    cnn_model.eval()
+    correct_multi = 0
+    correct_binary = 0
+    total = 0
+
+    with torch.no_grad():
+        for inputs, multi_labels, binary_labels in test_loader:
+            inputs = inputs.to(device)
+            multi_labels = multi_labels.to(device)
+            binary_labels = binary_labels.to(device)
+
+            multi_outputs, binary_outputs = cnn_model(inputs)
+
+            _, predicted_multi = torch.max(multi_outputs, 1)
+            correct_multi += (predicted_multi == multi_labels).sum().item()
+
+            predicted_binary = (binary_outputs.squeeze() >= 0.5).float()
+            correct_binary += (predicted_binary == binary_labels).sum().item()
+
+            total += multi_labels.size(0)
+
+    multi_accuracy = correct_multi / total if total > 0 else 0.0
+    binary_accuracy = correct_binary / total if total > 0 else 0.0
+    return multi_accuracy, binary_accuracy
+
 # ----------------------------- VAE Data Preparation --------------------------------
 
 # Helper function to scale and process "real" data into sequences of size 10000
@@ -139,11 +279,12 @@ def split_into_sequences(df, sequence_length):
 
 def combined_loss(cnn_model, x_reconstructed, x, mu, logvar, lambda_feedback=0.0, lambda_kl=0.0, alpha=1.2):
     # Reconstruction Loss (MSE + L1)
-    reconstruction_loss = 0.7 * F.mse_loss(x_reconstructed, x, reduction='mean') + 0.3 * F.l1_loss(x_reconstructed, x, reduction='mean')
+    reconstruction_loss = 0.7 * F.mse_loss(x_reconstructed, x, reduction='mean') + 0.3 * F.l1_loss(x_reconstructed, x,
+                                                                                                   reduction='mean')
 
     # Dynamic adjust mean and mu
     try:
-        if x.size(0) > 1:  
+        if x.size(0) > 1:
             target_mean = x.mean(dim=2).detach()
             generated_mean = x_reconstructed.mean(dim=2)
             mean_loss = F.mse_loss(generated_mean, target_mean)
@@ -159,21 +300,28 @@ def combined_loss(cnn_model, x_reconstructed, x, mu, logvar, lambda_feedback=0.0
         mean_loss = torch.tensor(0.0, device=x.device)
         std_loss = torch.tensor(0.0, device=x.device)
 
-    # Feature matching loss
-    cnn_model.eval()
-    with torch.no_grad():
-        _, _, features_real = cnn_model(x, return_features=True)
-    _, _, features_fake = cnn_model(x_reconstructed, return_features=True)
+    try:
+        cnn_model.eval()
+        with torch.no_grad():
+            _, _, features_real = cnn_model(x, return_features=True)
 
-    # 特征归一化和匹配损失
-    features_real_norm = F.normalize(features_real, dim=1)
-    features_fake_norm = F.normalize(features_fake, dim=1)
-    feature_loss = 0.7 * F.mse_loss(features_fake_norm, features_real_norm, reduction='mean') + 0.3 * F.l1_loss(features_fake_norm, features_real_norm, reduction='mean')
+        original_training_mode = cnn_model.training
+        cnn_model.train()
+        _, _, features_fake = cnn_model(x_reconstructed, return_features=True)
+        cnn_model.train(original_training_mode)
 
-    # KL Divergence Loss
+        if features_real.size() == features_fake.size() and features_real.numel() > 0:
+            features_real_norm = F.normalize(features_real, dim=1)
+            features_fake_norm = F.normalize(features_fake, dim=1)
+            feature_loss = 0.7 * F.mse_loss(features_fake_norm, features_real_norm, reduction='mean') + 0.3 * F.l1_loss(
+                features_fake_norm, features_real_norm, reduction='mean')
+        else:
+            feature_loss = torch.tensor(0.0, device=x.device)
+    except Exception as e:
+        print(f"Warning: Feature computation failed. Error: {e}")
+        feature_loss = torch.tensor(0.0, device=x.device)
+
     kl_loss = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
-
-    # Total Loss
     total_loss = alpha * reconstruction_loss + lambda_feedback * feature_loss + lambda_kl * kl_loss + std_loss + mean_loss
 
     return total_loss, reconstruction_loss.item(), feature_loss.item(), kl_loss.item(), mean_loss.item(), std_loss.item()
@@ -186,8 +334,8 @@ def init_weights(m):
         if m.bias is not None:
             nn.init.zeros_(m.bias)
 
-# ----------------------------- VAE Training --------------------------------
 
+# ----------------------------- VAE Training --------------------------------
 def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=128):
     dataset = TensorDataset(torch.tensor(X, dtype=torch.float32).unsqueeze(1))
 
@@ -208,18 +356,53 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
     scheduler_vae = optim.lr_scheduler.ReduceLROnPlateau(vae_optimizer, mode="max", factor=0.5, patience=10)
     scheduler_cnn = optim.lr_scheduler.ReduceLROnPlateau(cnn_optimizer, mode="max", factor=0.1, patience=5)
 
+    try:
+        print("Loading original task data...")
+        original_task_loader = load_original_task_data(device)
+        current_multi_accuracy, current_binary_accuracy = evaluate_original_task(cnn_model, original_task_loader,
+                                                                                 device)
+        print(
+            f"Initial original task - Multi-class accuracy: {current_multi_accuracy:.4f}, Binary accuracy: {current_binary_accuracy:.4f}")
+
+        multi_task_threshold = max(0.85, current_multi_accuracy * 0.95)
+        binary_task_threshold = max(0.85, current_binary_accuracy * 0.95)
+
+        print(f"Original task thresholds - Multi: {multi_task_threshold:.4f}, Binary: {binary_task_threshold:.4f}")
+
+    except Exception as e:
+        print(f"Error: Could not load original task data: {e}")
+        print("Training cannot continue without original task data!")
+        return None, None
+
     feedback_start_epoch = 10
     final_lambda_feedback = 0.2
     initial_lambda_feedback = 0.01
     kl_target = latent_dim / 2 + 5
     kl_start_epoch = 10
-    max_lambda_kl = 0.001
+    max_lambda_kl = 0.0005
 
     patience = 3
     val_acc_threshold = 0.98
     early_stop_counter = 0
 
+    original_task_violation_count = 0
+    max_violations = 3
+    performance_recovery_mode = False
+
     lambda_kl_initial = 1e-6
+
+    performance_history = {
+        'multi_accuracy': [current_multi_accuracy],
+        'binary_accuracy': [current_binary_accuracy]
+    }
+    window_size = 3
+
+    def create_infinite_loader(loader):
+        while True:
+            for batch in loader:
+                yield batch
+
+    original_task_infinite_iter = create_infinite_loader(original_task_loader)
 
     for epoch in range(epochs):
         if epoch < feedback_start_epoch:
@@ -243,7 +426,7 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
         total_train_mean = 0
         total_train_std = 0
 
-        for batch in train_loader:
+        for batch_idx, batch in enumerate(train_loader):
             x = batch[0].to(device)
 
             # Train VAE
@@ -264,22 +447,61 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
             total_train_kl += kl_loss_val
             total_train_mean += mean_loss_val
             total_train_std += std_loss_val
+            cnn_optimizer.zero_grad()
 
-            # CNN training set generator
             real_data = x
             fake_data = x_reconstructed.detach()
-
             cnn_input = torch.cat([real_data, fake_data], dim=0)
             cnn_labels = torch.cat([
-                torch.ones(real_data.size(0), 1, device=device), 
+                torch.ones(real_data.size(0), 1, device=device),
                 torch.zeros(fake_data.size(0), 1, device=device)
             ], dim=0)
 
-            # Train CNN
-            cnn_optimizer.zero_grad()
             _, binary_output = cnn_model(cnn_input)
-            cnn_loss = F.binary_cross_entropy(binary_output, cnn_labels)
-            cnn_loss.backward()
+            detection_loss = F.binary_cross_entropy(binary_output, cnn_labels)
+
+            original_task_loss = torch.tensor(0.0, device=device)
+            try:
+                orig_batch = next(original_task_infinite_iter)
+                orig_inputs, orig_multi_labels, orig_binary_labels = orig_batch
+                orig_inputs = orig_inputs.to(device)
+                orig_multi_labels = orig_multi_labels.to(device)
+                orig_binary_labels = orig_binary_labels.to(device)
+
+                orig_multi_output, orig_binary_output = cnn_model(orig_inputs)
+                orig_multi_loss = F.cross_entropy(orig_multi_output, orig_multi_labels)
+                orig_binary_loss = F.binary_cross_entropy(orig_binary_output.squeeze(), orig_binary_labels)
+                original_task_loss = 0.7 * orig_multi_loss + 0.3 * orig_binary_loss
+
+            except Exception as e:
+                print(f"Warning: Original task loss computation failed: {e}")
+                original_task_loss = torch.tensor(0.0, device=device)
+
+            avg_multi_accuracy = sum(performance_history['multi_accuracy'][-window_size:]) / min(window_size, len(
+                performance_history['multi_accuracy']))
+            avg_binary_accuracy = sum(performance_history['binary_accuracy'][-window_size:]) / min(window_size,
+                                                                                                   len(
+                                                                                                       performance_history[
+                                                                                                           'binary_accuracy']))
+
+            if performance_recovery_mode:
+                detection_weight = 0.1
+                original_weight = 0.9
+            elif avg_multi_accuracy < multi_task_threshold or avg_binary_accuracy < binary_task_threshold:
+                detection_weight = 0.3
+                original_weight = 0.7
+            elif epoch < 20:
+                detection_weight = 0.4
+                original_weight = 0.6
+            elif epoch < 50:
+                detection_weight = 0.5
+                original_weight = 0.5
+            else:
+                detection_weight = 0.55
+                original_weight = 0.45
+
+            total_cnn_loss = detection_weight * detection_loss + original_weight * original_task_loss
+            total_cnn_loss.backward()
             torch.nn.utils.clip_grad_norm_(cnn_model.parameters(), max_norm=5.0)
             cnn_optimizer.step()
 
@@ -293,10 +515,10 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
         vae.eval()
         cnn_model.eval()
         total_val_loss = 0
-        gen_mean_total = 0  
-        real_mean_total = 0 
-        gen_std_total = 0  
-        real_std_total = 0  
+        gen_mean_total = 0
+        real_mean_total = 0
+        gen_std_total = 0
+        real_std_total = 0
         num_batches = 0
 
         with torch.no_grad():
@@ -318,6 +540,54 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
 
         avg_val_loss = total_val_loss / len(val_loader)
         val_accuracy = evaluate_with_cnn(cnn_model, vae, val_loader, device)
+
+        try:
+            current_multi_accuracy, current_binary_accuracy = evaluate_original_task(cnn_model, original_task_loader,
+                                                                                     device)
+
+            performance_history['multi_accuracy'].append(current_multi_accuracy)
+            performance_history['binary_accuracy'].append(current_binary_accuracy)
+
+            if len(performance_history['multi_accuracy']) > window_size * 2:
+                performance_history['multi_accuracy'] = performance_history['multi_accuracy'][-window_size * 2:]
+                performance_history['binary_accuracy'] = performance_history['binary_accuracy'][-window_size * 2:]
+
+        except Exception as e:
+            print(f"Warning: Could not evaluate original task: {e}")
+            current_multi_accuracy = performance_history['multi_accuracy'][-1]
+            current_binary_accuracy = performance_history['binary_accuracy'][-1]
+
+        recent_multi_avg = sum(performance_history['multi_accuracy'][-window_size:]) / min(window_size, len(
+            performance_history['multi_accuracy']))
+        recent_binary_avg = sum(performance_history['binary_accuracy'][-window_size:]) / min(window_size, len(
+            performance_history['binary_accuracy']))
+
+        if recent_multi_avg < multi_task_threshold or recent_binary_avg < binary_task_threshold:
+            original_task_violation_count += 1
+            print(
+                f"VIOLATION {original_task_violation_count}/{max_violations} - Multi: {recent_multi_avg:.4f} < {multi_task_threshold:.4f}, Binary: {recent_binary_avg:.4f} < {binary_task_threshold:.4f}")
+
+            if original_task_violation_count == max_violations:
+                if not performance_recovery_mode:
+                    print(f"ENTERING PERFORMANCE RECOVERY MODE!")
+                    performance_recovery_mode = True
+                    lambda_feedback *= 0.5
+                    print(f"   Reduced lambda_feedback to {lambda_feedback:.4f}")
+        else:
+            if original_task_violation_count > 0:
+                print(f"Original task performance recovered!")
+            original_task_violation_count = 0
+            if performance_recovery_mode:
+                print(f"EXITING PERFORMANCE RECOVERY MODE!")
+                performance_recovery_mode = False
+
+        if performance_recovery_mode and epoch > 0 and epoch % 10 == 0:
+            if recent_multi_avg < multi_task_threshold * 0.8 or recent_binary_avg < binary_task_threshold * 0.8:
+                print(f"CRITICAL: Original task performance severely degraded. Stopping training.")
+                print(f"   Multi: {recent_multi_avg:.4f} << {multi_task_threshold:.4f}")
+                print(f"   Binary: {recent_binary_avg:.4f} << {binary_task_threshold:.4f}")
+                break
+
         scheduler_vae.step(val_accuracy)
         scheduler_cnn.step(val_accuracy)
         current_lr = vae_optimizer.param_groups[0]['lr']
@@ -327,8 +597,11 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
         avg_gen_std = gen_std_total / num_batches
         avg_real_std = real_std_total / num_batches
 
-        # Early stopping logic
-        if val_accuracy >= val_acc_threshold and avg_train_kl < kl_target:
+        if (val_accuracy >= 0.98 and
+                avg_train_kl < kl_target and
+                recent_multi_avg >= 0.9 and
+                recent_binary_avg >= 0.9 and
+                not performance_recovery_mode):
             early_stop_counter += 1
             if early_stop_counter >= patience:
                 print("Early stopping criteria met. Training stopped.")
@@ -339,12 +612,14 @@ def train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=250, latent_dim=
         print(f"Epoch {epoch + 1}/{epochs} - "
               f"Train Loss: {avg_train_loss:.4f}, Recon: {avg_train_recon:.4f}, Class: {avg_train_class:.4f}, KL: {avg_train_kl:.4f}, Mean Loss: {avg_train_mean:.4f}, Std Loss: {avg_train_std:.4f} "
               f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_accuracy:.4f}, "
+              f"Multi Task Acc: {current_multi_accuracy:.4f} (avg: {recent_multi_avg:.4f}), "
+              f"Binary Task Acc: {current_binary_accuracy:.4f} (avg: {recent_binary_avg:.4f}), "
               f"Generated Mean: {avg_gen_mean:.4f}, Real Mean: {avg_real_mean:.4f}, "
               f"Generated Std: {avg_gen_std:.4f}, Real Std: {avg_real_std:.4f}, "
               f"Lambda_feedback: {lambda_feedback:.4f}, Lambda_kl: {lambda_kl:.4f}, "
-              f"Current LR: {current_lr:.10f}, CNN Loss: {cnn_loss.item():.4f}")
+              f"Current LR: {current_lr:.10f}, Weights(D/O): {detection_weight:.2f}/{original_weight:.2f}")
 
-    return vae
+    return vae, original_task_loader
 
 # --------------------- Validate through CNN_classifier ------------------------
 def evaluate_with_cnn(cnn_model, vae, val_loader, device):
@@ -365,44 +640,9 @@ def evaluate_with_cnn(cnn_model, vae, val_loader, device):
     accuracy = correct / total
     return accuracy
 
-# ----------------------------- Plotting Function --------------------------------
-
-def plot_original_and_generated(vae, dataset, device):
-    vae.eval()
-    with torch.no_grad():
-        random_indices = random.sample(range(len(dataset)), 5)
-        plt.figure(figsize=(10, 15))
-        for i, idx in enumerate(random_indices):
-            original_sample = dataset[idx][0].unsqueeze(0).to(device)
-            generated_sample, _, _ = vae(original_sample)
-            original_sample = original_sample.squeeze().cpu().numpy()
-            generated_sample = generated_sample.squeeze().cpu().numpy()
-            plt.subplot(5, 2, 2 * i + 1)
-            plt.plot(original_sample, color='blue', linewidth=1)
-            plt.ylim(-1, 1)
-            plt.title(f'Original Sample {i + 1}')
-            plt.subplot(5, 2, 2 * i + 2)
-            plt.plot(generated_sample, color='green', linewidth=1)
-            plt.ylim(-1, 1)
-            plt.title(f'Generated Sample {i + 1}')
-        plt.tight_layout()
-        plt.show()
-
-
 # ----------------------------- Extract Signals --------------------------------
 
 def extract_and_save_latent_and_signals(vae, dataset, device, output_file='latent_and_signals.csv', num_samples=100):
-    """
-    Extract latent space representations, original signals, and reconstructed signals for a random set of samples,
-    and save them to a CSV file.
-
-    Args:
-        vae: Trained VAE model.
-        dataset: TensorDataset containing the input sequences.
-        device: The device (CPU or CUDA) to run the computations on.
-        output_file: Name of the output CSV file.
-        num_samples: Number of random samples to extract.
-    """
     vae.eval()
 
     # Randomly select num_samples indices
@@ -416,32 +656,24 @@ def extract_and_save_latent_and_signals(vae, dataset, device, output_file='laten
 
         for idx in indices:
             # Get the original sample
-            original_sample = dataset[idx][0].unsqueeze(0).to(device)  # Shape: (1, 1, sequence_length)
-
-            # Pass the original sample through the VAE to get the latent vector and reconstructed sample
+            original_sample = dataset[idx][0].unsqueeze(0).to(device)
             encoded = vae.encoder(original_sample)
             mu = vae.fc_mu(encoded)
             latent_vector = mu.squeeze().cpu().numpy()
 
             reconstructed_sample, _, _ = vae(original_sample)
 
-            # Convert tensors to numpy arrays
             original_signal = original_sample.squeeze().cpu().numpy()
             reconstructed_signal = reconstructed_sample.squeeze().cpu().numpy()
 
-            # Store data
             all_original_signals.append(original_signal)
             all_reconstructed_signals.append(reconstructed_signal)
-            all_latent_vectors.extend(latent_vector)  # Flatten and extend the latent vectors list
+            all_latent_vectors.extend(latent_vector)
 
-        # Save to CSV
         with open(output_file, mode='w', newline='') as file:
             writer = csv.writer(file)
 
-            # Write headers
             writer.writerow(['Sample_Index', 'Data_Point', 'Original_Signal', 'Reconstructed_Signal', 'Latent_Vector'])
-
-            # Write data rows for each sample
             for sample_idx, (original_signal, reconstructed_signal) in enumerate(
                     zip(all_original_signals, all_reconstructed_signals)):
                 max_length = max(len(original_signal), len(reconstructed_signal))
@@ -456,97 +688,46 @@ def extract_and_save_latent_and_signals(vae, dataset, device, output_file='laten
 
     print(f"{num_samples} latent vectors, original signals, and reconstructed signals saved to {output_file}")
 
-def plot_umap_distribution(vae, dataset, device, num_samples=100, save_path=None):
-    vae.eval()
-    all_original_signals = []
-    all_generated_signals = []
-
-    indices = random.sample(range(len(dataset)), num_samples)
-    with torch.no_grad():
-        for idx in indices:
-            original_sample = dataset[idx][0].unsqueeze(0).to(device)  # (1, 1, sequence_length)
-            generated_sample, _, _ = vae(original_sample)
-
-            all_original_signals.append(original_sample.squeeze().cpu().numpy())
-            all_generated_signals.append(generated_sample.squeeze().cpu().numpy())
-
-    all_original_signals = np.array(all_original_signals)
-    all_generated_signals = np.array(all_generated_signals)
-
-    original_flattened = all_original_signals.reshape(num_samples, -1)
-    generated_flattened = all_generated_signals.reshape(num_samples, -1)
-
-    combined_data = np.vstack((original_flattened, generated_flattened))
-    labels = ['Original'] * num_samples + ['Generated'] * num_samples
-
-    reducer = umap.UMAP(n_neighbors=15, min_dist=0.1, random_state=42)
-    embedding = reducer.fit_transform(combined_data)
-
-    df = pd.DataFrame(embedding, columns=['UMAP1', 'UMAP2'])
-    df['Type'] = labels
-
-    if save_path:
-        df.to_csv(save_path, index=False)
-
-    plt.figure(figsize=(10, 8))
-    sns.scatterplot(
-        data=df,
-        x='UMAP1',
-        y='UMAP2',
-        hue='Type',
-        palette={'Original': 'blue', 'Generated': 'green'},
-        alpha=0.7,
-        s=60
-    )
-    plt.title('UMAP Distribution of Original and Generated Signals', fontsize=16)
-    plt.xlabel('UMAP1', fontsize=14)
-    plt.ylabel('UMAP2', fontsize=14)
-    plt.legend(title='Signal Type', fontsize=12)
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
 # ----------------------------- MAIN --------------------------------------------
 
 if __name__ == '__main__':
-    # Check for GPU support
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    # Load CSV files into DataFrames and combine them into one dataframe
-    df1 = pd.read_csv('Ture_1.csv', usecols=[4])
-    df2 = pd.read_csv('Ture_2.csv', usecols=[4])
-    df3 = pd.read_csv('Ture_3.csv', usecols=[4])
-    df4 = pd.read_csv('Ture_4.csv', usecols=[4])
-
-     # Define sequence length
+    # Load data
+    df1 = pd.read_csv('Demo_True.csv')
     sequence_length = 10000
+    X1 = split_into_sequences(df1, sequence_length)
+    X = X1
 
-    X1 = split_into_sequences(d1, sequence_length)
-    X2 = split_into_sequences(d2, sequence_length)
-    X3 = split_into_sequences(d3, sequence_length)
-    X4 = split_into_sequences(d4, sequence_length)
+    # Load CNN model
+    # num_classes should be equal to the number of CRPs
+    cnn_model = CNN(input_length=sequence_length, num_classes=1).to(device)
+    cnn_model.load_state_dict(torch.load('./saved_models/Original_CNN.pth', map_location=device))
 
+    # Evaluate baseline performance
+    original_task_loader = load_original_task_data(device)
+    baseline_multi, baseline_binary = evaluate_original_task(cnn_model, original_task_loader, device)
+    print(f"Baseline - Multi: {baseline_multi:.4f}, Binary: {baseline_binary:.4f}")
 
-    # Split the dataframe into scaled sequences of size sequence_length
-    X = np.vstack([X1, X2, X3, X4])
+    # Train VAE
+    print("Starting VAE training...")
+    vae, final_loader = train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=100, latent_dim=128)
 
-    # Load CNN-classifier weights
-    cnn_model = CNN(input_length=sequence_length, num_classes=17).to(device)
-    cnn_model.load_state_dict(torch.load('/saved_models/puf_classifier_save_model.pth', map_location=device))
-    cnn_model.eval()
+    if final_loader is not None:
+        # Final evaluation
+        final_multi, final_binary = evaluate_original_task(cnn_model, final_loader, device)
+        print(f"Final - Multi: {final_multi:.4f}, Binary: {final_binary:.4f}")
+        print(f"Change - Multi: {final_multi - baseline_multi:+.4f}, Binary: {final_binary - baseline_binary:+.4f}")
 
-    # Train VAE with new loss function
-    vae = train_vae_with_adversarial_cnn(X, cnn_model, device, epochs=100, latent_dim=128)
+        # Save models
+        torch.save(cnn_model.state_dict(), './saved_models/Enhanced_CNN.pth')
+        torch.save(vae.state_dict(), './saved_models/VAE.pth')
 
-    # Save VAE model
-    torch.save(vae.state_dict(), '/saved_models/vae.pth')
-
-    # Draw comparison figures for original and generated sequences
-    dataset = TensorDataset(torch.tensor(X, dtype=torch.float32).unsqueeze(1))
-    plot_original_and_generated(vae, dataset, device)
-    plot_umap_distribution(vae, dataset, device, num_samples=100, save_path='umap.csv')
-
-    # Save data
-    extract_and_save_latent_and_signals(vae, dataset, device, output_file='latent_and_signals.csv')
+        # Save results
+        dataset = TensorDataset(torch.tensor(X, dtype=torch.float32).unsqueeze(1))
+        extract_and_save_latent_and_signals(vae, dataset, device, output_file='latent_and_signals_review.csv')
+        print("Training completed and models saved.")
+    else:
+        print("Training failed - no evaluation data available")
 
