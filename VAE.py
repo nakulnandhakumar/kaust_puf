@@ -1,3 +1,4 @@
+#!/ibex/user/nandhan/mambaforge/bin/python3
 
 import torch
 import torch.nn as nn
@@ -123,8 +124,7 @@ def load_original_task_data(device, sequence_length=10000):
     file_info = [
         ("Demo_Nontarget_1.csv", 0, 0.0),
         ("Demo_Nontarget_2.csv", 1, 0.0),
-        ...
-        ("Demo_Target.csv", n, 1.0)
+        ("Demo_Target.csv", 2, 1.0)
     ]
 
     train_segments = []
