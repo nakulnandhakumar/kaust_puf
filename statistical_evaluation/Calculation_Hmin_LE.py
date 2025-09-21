@@ -1,3 +1,16 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Minimum Entropy (Hmin) and Lyapunov Exponent (LE) Calculation Demo
+------------------------------------------------------------------
+This script computes:
+1. Minimum entropy (Hmin) of quantized sequences at different segment lengths
+   (1k, 10k, 100k, 1M samples, plus full sequence).
+2. Largest Lyapunov exponent (LE) of the normalized signal using
+   phase-space reconstruction and nearest-neighbor divergence.
+"""
+
 import numpy as np
 import pandas as pd
 import math
@@ -7,7 +20,15 @@ from scipy.spatial.distance import pdist, squareform
 from numpy.linalg import norm
 from scipy.stats import linregress
 
+# ----------------------------- Data Preprocessing ------------------------------
+
 def read_and_quantize(file_path):
+    """
+    Read raw sequence (single column) from CSV and quantize:
+    - Normalize to [0,1]
+    - Scale to 0–255 and round to integers (8-bit symbols)
+    Returns quantized symbols and normalized data.
+    """
     data = pd.read_csv(file_path, usecols=[4]).iloc[:, 0].dropna().values
     xmin, xmax = data.min(), data.max()
     if xmax == xmin:
@@ -16,12 +37,21 @@ def read_and_quantize(file_path):
     quantized = np.round(norm_data * 255).astype(int)
     return np.clip(quantized, 0, 255), norm_data
 
+# ----------------------------- Minimum Entropy ---------------------------------
+
 def calculate_hmin(symbols):
+    """Compute min-entropy = -log2(max probability of any symbol)."""
     counts = np.bincount(symbols, minlength=256)
     p_max = counts.max() / len(symbols)
     return -math.log2(p_max)
 
 def compute_avg_hmin(symbols, segment_length, samples=10):
+    """
+    Estimate average min-entropy over multiple random segments.
+    - symbols: quantized data
+    - segment_length: length of each segment
+    - samples: number of random segments to draw
+    """
     N = len(symbols)
     if N < segment_length:
         raise ValueError(f"Sequence length {N} is less than segment length {segment_length}")
@@ -32,19 +62,33 @@ def compute_avg_hmin(symbols, segment_length, samples=10):
         h_vals.append(calculate_hmin(seg))
     return sum(h_vals) / samples
 
+# ----------------------------- Lyapunov Exponent -------------------------------
+
 def lyapunov_exponent_original(signal, emb_dim, tau, window_len):
+    """
+    Compute largest Lyapunov exponent (LE) via phase-space method:
+    - Embedding dimension: emb_dim
+    - Delay: tau
+    - Window length: window_len
+    Steps:
+      1. Reconstruct trajectory in embedding space
+      2. Find nearest neighbor (excluding temporal neighbors)
+      3. Track separation over time and compute log growth
+      4. Fit slope of log-distance vs time
+    """
     N = len(signal)
     min_req = window_len + emb_dim * tau
     if N < min_req:
         raise ValueError(f"signal length {N} < required {min_req} (window={window_len}, m={emb_dim}, τ={tau})")
 
+    # Embedding
     x = signal[:window_len]
-    m = emb_dim
-    M = window_len - (m - 1) * tau
-    X = np.array([x[i : i + m*tau : tau] for i in range(M)])
+    M = window_len - (emb_dim - 1) * tau
+    X = np.array([x[i : i + emb_dim * tau : tau] for i in range(M)])
 
+    # Pairwise distances
     D = squareform(pdist(X))
-    eps_time = m * tau
+    eps_time = emb_dim * tau
     nearest = np.full(M, -1, dtype=int)
     for i in range(M):
         lo = max(0, i - eps_time)
@@ -53,11 +97,13 @@ def lyapunov_exponent_original(signal, emb_dim, tau, window_len):
         row[lo:hi] = np.inf
         nearest[i] = np.argmin(row)
 
+    # Initial distances
     d0 = np.array([D[i, nearest[i]] for i in range(M)])
-    valid_i = np.where(d0 > 0)[0] 
+    valid_i = np.where(d0 > 0)[0]
     if len(valid_i) == 0:
-        raise ValueError("All initial distance equals to 0")
+        raise ValueError("All initial distances are zero")
 
+    # Time evolution
     t_max = min(100, M - np.max(nearest))
     if t_max < 2:
         raise ValueError("Too few available steps")
@@ -72,27 +118,27 @@ def lyapunov_exponent_original(signal, emb_dim, tau, window_len):
                 break
             d_it = norm(X[i + t] - X[j + t])
             if d_it <= 0:
-                continue  
+                continue
             y_curve[t - 1] += math.log(d_it / d0[i])
             counts[t - 1] += 1
 
-    t_axis = []
-    y_vals = []
+    t_axis, y_vals = [], []
     for idx in range(t_max):
         if counts[idx] > 0:
             t_axis.append(idx + 1)
             y_vals.append(y_curve[idx] / counts[idx])
 
     if len(t_axis) < 2:
-        raise ValueError("Too few available steps")
+        raise ValueError("Too few valid divergence steps")
 
-    t_axis = np.array(t_axis)
-    y_vals = np.array(y_vals)
-
-    slope, _, _, _, _ = linregress(t_axis, y_vals)
+    slope, _, _, _, _ = linregress(np.array(t_axis), np.array(y_vals))
     return slope
 
 def compute_le_with_fallback(signal):
+    """
+    Try multiple (embedding dimension, tau, window length) settings.
+    Return first successful Lyapunov exponent and parameters.
+    """
     param_list = [
         (8, 2, 10000),
         (8, 2, 5000),
@@ -104,7 +150,6 @@ def compute_le_with_fallback(signal):
         (8, 4, 5000),
         (8, 4, 2000),
     ]
-
     last_error = None
     for (m, tau, wlen) in param_list:
         try:
@@ -113,24 +158,28 @@ def compute_le_with_fallback(signal):
         except Exception as e:
             last_error = e
             continue
-
-    print(f"[Warning] 所有尝试均失败，signal length={len(signal)}，最后一次错误：{last_error}")
+    print(f"[Warning] All attempts failed, signal length={len(signal)}, last error: {last_error}")
     return np.nan, None, None, None
 
+# ----------------------------- Main --------------------------------------------
+
 if __name__ == "__main__":
-    file_paths = ['Demo: File_Path.csv']
+    file_paths = ['Demo_File.csv']  # demo placeholder
 
     results = []
     for fp in file_paths:
         fname = os.path.basename(fp)
         try:
             symbols, norm_data = read_and_quantize(fp)
+
+            # Compute min-entropy at different segment lengths
             avg_1k   = compute_avg_hmin(symbols, 1_000,    samples=10)
             avg_10k  = compute_avg_hmin(symbols, 10_000,   samples=10)
             avg_100k = compute_avg_hmin(symbols, 100_000,  samples=10)
             avg_1M   = compute_avg_hmin(symbols, 1_000_000, samples=10)
             h_full   = calculate_hmin(symbols)
 
+            # Compute Lyapunov exponent with fallback
             le, used_m, used_tau, used_wlen = compute_le_with_fallback(norm_data)
 
             results.append({
@@ -147,7 +196,7 @@ if __name__ == "__main__":
             })
 
         except Exception as e:
-            print(f"[Error] file {fname} process failed：{e}")
+            print(f"[Error] file {fname} process failed: {e}")
             results.append({
                 'filename':      fname,
                 'avg_hmin_1k':   np.nan,
@@ -161,6 +210,7 @@ if __name__ == "__main__":
                 'window_len':    None
             })
 
+    # Save summary
     df = pd.DataFrame(results, columns=[
         'filename',
         'avg_hmin_1k',

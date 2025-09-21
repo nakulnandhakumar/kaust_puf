@@ -1,3 +1,16 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Challenge Separability Test (Demo)
+----------------------------------
+This script evaluates the minimum separability of PUF challenges.
+- A CNN is trained on baseline and maximum condition samples.
+- Intermediate challenge conditions are tested progressively.
+- Logistic regression is used on extracted CNN features to
+  determine the smallest resolvable change (temperature or current).
+"""
+
 import os
 import torch
 import torch.nn as nn
@@ -10,14 +23,18 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import cross_val_score
 import gc
 
-# Configuration
+# ----------------------------- Config ------------------------------------------
+
 SEQUENCE_SIZE = 10000
 BATCH_SIZE = 32
 MODEL_PATH = "saved_models/Separability_Original_CNN.pth"
 os.makedirs("saved_models", exist_ok=True)
 
 
+# ----------------------------- Data Utils --------------------------------------
+
 def create_segments(df: pd.DataFrame, seq_len: int) -> np.ndarray:
+    """Slice long sequence into fixed-length windows."""
     arr = df.iloc[:, 0].to_numpy(dtype=np.float32)
     arr = np.nan_to_num(arr)
     n = len(arr) // seq_len
@@ -29,13 +46,11 @@ def create_segments(df: pd.DataFrame, seq_len: int) -> np.ndarray:
 
 
 def augment_freq(x: torch.Tensor, phase_jitter=0.05, amp_jitter=0.05) -> torch.Tensor:
+    """Frequency-domain augmentation with random phase/amp jitter and partial masking."""
     Xf = torch.fft.rfft(x, dim=-1)
-    mag = Xf.abs()
-    ang = Xf.angle()
-
+    mag, ang = Xf.abs(), Xf.angle()
     mag = mag * (1 + amp_jitter * (2 * torch.rand_like(mag) - 1))
     ang = ang + phase_jitter * (2 * torch.rand_like(ang) - 1)
-
     if torch.rand(1).item() < 0.3:
         freq_mask = torch.ones_like(mag)
         mask_start = torch.randint(0, mag.shape[-1] // 2, (1,)).item()
@@ -43,12 +58,12 @@ def augment_freq(x: torch.Tensor, phase_jitter=0.05, amp_jitter=0.05) -> torch.T
         freq_mask[..., mask_start:mask_start + mask_len] = 0.5
     else:
         freq_mask = torch.ones_like(mag)
-
     Xf2 = mag * freq_mask * torch.exp(1j * ang)
     return torch.fft.irfft(Xf2, n=x.shape[-1], dim=-1)
 
 
 class PUFArrayDataset(Dataset):
+    """Custom dataset with optional augmentation (time/frequency perturbations)."""
     def __init__(self, X: np.ndarray, y_multi: np.ndarray, augment: bool = False):
         self.X = X
         self.y_multi = y_multi
@@ -59,20 +74,16 @@ class PUFArrayDataset(Dataset):
 
     def __getitem__(self, idx):
         x = torch.tensor(self.X[idx], dtype=torch.float32)
-
         if self.augment:
-            # Time domain noise
+            # Time-domain noise
             noise_std = np.random.uniform(0.1, 0.2) * x.std()
             x = x + torch.randn_like(x) * noise_std
-
-            # Time domain shift
+            # Time shift
             shift = np.random.randint(-10, 11)
             if shift != 0:
                 x = torch.roll(x, shifts=shift, dims=-1)
-
-            # Frequency domain augmentation
+            # Frequency-domain jitter
             x = augment_freq(x, phase_jitter=0.05, amp_jitter=0.05)
-
             # Random segment replacement
             if np.random.rand() < 0.1:
                 seg_len = np.random.randint(50, 200)
@@ -80,12 +91,14 @@ class PUFArrayDataset(Dataset):
                 replace_start = np.random.randint(0, x.shape[-1] - seg_len)
                 if abs(replace_start - start_idx) > seg_len:
                     x[0, start_idx:start_idx + seg_len] = x[0, replace_start:replace_start + seg_len]
-
         y_m = torch.tensor(self.y_multi[idx], dtype=torch.long)
         return x, y_m
 
 
+# ----------------------------- CNN Model ---------------------------------------
+
 class CNN(nn.Module):
+    """1D CNN used for feature extraction and classification."""
     def __init__(self, seq_len: int, num_classes: int):
         super().__init__()
         k, p = 100, 10
@@ -113,90 +126,82 @@ class CNN(nn.Module):
         return logits, feat
 
 
-def progressive_training_test_single(device, condition_type):
-    """Test model generalization by training on larger differences and testing on smaller increments."""
+# ----------------------------- Progressive Test --------------------------------
 
+def progressive_training_test_single(device, condition_type):
+    """
+    Train CNN on baseline and maximum conditions,
+    then test intermediate conditions to estimate separability threshold.
+    """
     if condition_type == "Temperature":
         conditions = [
-            (17.00, "D1/D2/D3-17.00C.csv"),
-            (17.01, "D1/D2/D3-17.01C.csv"),
-            (17.02, "D1/D2/D3-17.02C.csv"),
-            (17.03, "D1/D2/D3-17.03C.csv"),
-            (17.04, "D1/D2/D3-17.04C.csv"),
-            (17.05, "D1/D2/D3-17.05C.csv"),
-            (17.06, "D1/D2/D3-17.06C.csv"),
-            (17.07, "D1/D2/D3-17.07C.csv"),
-            (17.08, "D1/D2/D3-17.08C.csv"),
-            (17.09, "D1/D2/D3-17.09C.csv"),
-            (17.10, "D1/D2/D3-17.10C.csv"),
+            (17.00, "Demo_Temp_17.00C.csv"),
+            (17.01, "Demo_Temp_17.01C.csv"),
+            (17.02, "Demo_Temp_17.02C.csv"),
+            (17.03, "Demo_Temp_17.03C.csv"),
+            (17.04, "Demo_Temp_17.04C.csv"),
+            (17.05, "Demo_Temp_17.05C.csv"),
+            (17.06, "Demo_Temp_17.06C.csv"),
+            (17.07, "Demo_Temp_17.07C.csv"),
+            (17.08, "Demo_Temp_17.08C.csv"),
+            (17.09, "Demo_Temp_17.09C.csv"),
+            (17.10, "Demo_Temp_17.10C.csv"),
         ]
         unit = "°C"
     else:  # Current
         conditions = [
-            (50.00, "D1/D2/D3-50.00mA.csv"),
-            (50.01, "D1/D2/D3-50.01mA.csv"),
-            (50.02, "D1/D2/D3-50.02mA.csv"),
-            (50.03, "D1/D2/D3-50.03mA.csv"),
-            (50.04, "D1/D2/D3-50.04mA.csv"),
-            (50.05, "D1/D2/D3-50.05mA.csv"),
-            (50.06, "D1/D2/D3-50.06mA.csv"),
-            (50.07, "D1/D2/D3-50.07mA.csv"),
-            (50.08, "D1/D2/D3-50.08mA.csv"),
-            (50.09, "D1/D2/D3-50.09mA.csv"),
-            (50.10, "D1/D2/D3-50.10mA.csv"),
+            (50.00, "Demo_Curr_50.00mA.csv"),
+            (50.01, "Demo_Curr_50.01mA.csv"),
+            (50.02, "Demo_Curr_50.02mA.csv"),
+            (50.03, "Demo_Curr_50.03mA.csv"),
+            (50.04, "Demo_Curr_50.04mA.csv"),
+            (50.05, "Demo_Curr_50.05mA.csv"),
+            (50.06, "Demo_Curr_50.06mA.csv"),
+            (50.07, "Demo_Curr_50.07mA.csv"),
+            (50.08, "Demo_Curr_50.08mA.csv"),
+            (50.09, "Demo_Curr_50.09mA.csv"),
+            (50.10, "Demo_Curr_50.10mA.csv"),
         ]
         unit = "mA"
 
-    # Use baseline and maximum values for training
+    # Use baseline and maximum for training
     train_indices = [0, 10]
     test_indices = [i for i in range(len(conditions)) if i not in train_indices]
 
-    # Load and preprocess conditions
-    all_data = []
-    all_labels = []
-    all_values = []
-
+    # Load and preprocess
+    all_data, all_labels, all_values = [], [], []
     for i, (value, file_path) in enumerate(conditions):
         try:
-            df = pd.read_csv(file_path, usecols=[4])
+            df = pd.read_csv(file_path, usecols=[0])  # demo: assume one column
             segs = create_segments(df, SEQUENCE_SIZE)
-
-            # Normalize
+            # Normalize to [-1, 1]
             mn, mx = segs.min(), segs.max()
             segs = 2 * (segs - mn) / (mx - mn) - 1
-
             all_data.append(segs)
             all_labels.append(np.full(len(segs), i))
             all_values.append(value)
         except Exception as e:
             print(f"Error loading {file_path}: {e}")
 
-    # Prepare training data
+    # Training data (baseline + max)
     X_train = np.vstack([all_data[i] for i in train_indices])
     y_train = np.concatenate([all_labels[i] for i in train_indices])
-
     # Map labels to consecutive indices
-    label_mapping = {old_label: new_label for new_label, old_label in enumerate(sorted(np.unique(y_train)))}
-    y_train_mapped = np.array([label_mapping[label] for label in y_train])
-
+    label_mapping = {old: new for new, old in enumerate(sorted(np.unique(y_train)))}
+    y_train_mapped = np.array([label_mapping[l] for l in y_train])
     train_dataset = PUFArrayDataset(X_train, y_train_mapped, augment=False)
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
-    # Train model
+    # Train CNN
     prog_model = CNN(SEQUENCE_SIZE, len(train_indices)).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(prog_model.parameters(), lr=0.001, weight_decay=1e-4)
 
-    best_loss = float('inf')
-    patience = 0
-    max_patience = 5
+    best_loss, patience, max_patience = float('inf'), 0, 5
     best_model_state = None
-
     for epoch in range(30):
         prog_model.train()
-        train_loss = 0
-        total = 0
-
+        train_loss, total = 0, 0
         for inputs, labels in train_loader:
             inputs, labels = inputs.to(device), labels.to(device)
             optimizer.zero_grad()
@@ -206,28 +211,22 @@ def progressive_training_test_single(device, condition_type):
             optimizer.step()
             train_loss += loss.item() * inputs.size(0)
             total += inputs.size(0)
-
         epoch_loss = train_loss / total
-
         if epoch_loss < best_loss:
-            best_loss = epoch_loss
-            patience = 0
+            best_loss, patience = epoch_loss, 0
             best_model_state = copy.deepcopy(prog_model.state_dict())
         else:
             patience += 1
             if patience >= max_patience:
                 break
-
-    if best_model_state is not None:
+    if best_model_state:
         prog_model.load_state_dict(best_model_state)
 
-    # Test on all conditions
+    # Test intermediate conditions
     condition_results = []
-
     for i, data in enumerate(all_data):
         condition_value = all_values[i]
         X = torch.tensor(data, dtype=torch.float32).to(device)
-
         prog_model.eval()
         with torch.no_grad():
             if i in train_indices:
@@ -237,75 +236,66 @@ def progressive_training_test_single(device, condition_type):
                 accuracy = (predicted == mapped_label).float().mean().item()
                 condition_results.append((condition_value, accuracy, "Train"))
             else:
-                # Extract features for transfer learning
-                orig_features = []
+                # Extract features
+                feats = []
                 for j in range(0, len(X), BATCH_SIZE):
                     batch = X[j:j + BATCH_SIZE]
                     _, feat = prog_model(batch)
-                    orig_features.append(feat)
-                features = torch.cat(orig_features, 0)
+                    feats.append(feat)
+                features = torch.cat(feats, 0)
 
-                # Add noise for very small changes
-                if abs(condition_value - all_values[0]) <= 0.01:
-                    noise_factor = np.random.uniform(0.1, 0.2)
-                    features = features + torch.randn_like(features) * noise_factor * features.std()
-
-                # Compare with baseline condition
+                # Binary classification with baseline
                 base_data = all_data[0]
                 base_X = torch.tensor(base_data, dtype=torch.float32).to(device)
-
-                base_features = []
+                base_feats = []
                 for j in range(0, len(base_X), BATCH_SIZE):
                     batch = base_X[j:j + BATCH_SIZE]
                     _, feat = prog_model(batch)
-                    base_features.append(feat)
-                base_features = torch.cat(base_features, 0)
+                    base_feats.append(feat)
+                base_features = torch.cat(base_feats, 0)
 
-                # Binary classification
                 bin_X = torch.cat([base_features, features], 0).cpu().numpy()
                 bin_y = np.concatenate([np.zeros(len(base_features)), np.ones(len(features))])
-
                 if len(bin_X) >= 10 and len(np.unique(bin_y)) > 1:
                     clf = LogisticRegression(random_state=42, max_iter=1000, solver='liblinear', C=1.0)
                     scores = cross_val_score(clf, bin_X, bin_y, cv=5)
                     accuracy = scores.mean()
                 else:
                     accuracy = 0.5
-
                 condition_results.append((condition_value, accuracy, "Test"))
 
+    return {condition_type: condition_results}
+
+
+# ----------------------------- Main --------------------------------------------
 
 if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
     all_results = {}
 
-    # Run progressive training tests
+    # Temperature
     temp_results = progressive_training_test_single(device, "Temperature")
     all_results.update(temp_results)
-
     if device.type == 'cuda':
         torch.cuda.empty_cache()
         gc.collect()
 
-    current_results = progressive_training_test_single(device, "Current")
-    all_results.update(current_results)
+    # Current
+    curr_results = progressive_training_test_single(device, "Current")
+    all_results.update(curr_results)
 
-    # Summary
+    # Summarize threshold
     print("Progressive Training Test Results:")
-
     for condition_type in ["Temperature", "Current"]:
         if condition_type in all_results:
             train_values = [r[0] for r in all_results[condition_type] if r[2] == "Train"]
             baseline = min(train_values)
             min_detect = None
-
             for val, acc, group in all_results[condition_type]:
                 if group == "Test" and acc >= 0.9:
                     delta = abs(val - baseline)
                     if min_detect is None or delta < min_detect:
                         min_detect = delta
-
             unit = "°C" if condition_type == "Temperature" else "mA"
             if min_detect is not None:
                 print(f"{condition_type} threshold: {min_detect}{unit}")
