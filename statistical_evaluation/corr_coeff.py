@@ -41,7 +41,7 @@ df3 = pd.read_csv("Demo_Device3.csv")
 # ----------------------------- Correlation Analysis ----------------------------
 
 # Example: within-device correlation for Device 1
-X1 = create_dataset(df1, 10000)
+X1 = create_dataset(df1, 1000)
 corr_coeff_within_dev = X1[:500]  # take first 500 sequences for demo
 num_sequences = corr_coeff_within_dev.shape[0]
 corr_coeff_within_dev_mat = np.corrcoef(corr_coeff_within_dev, rowvar=True)
@@ -58,7 +58,7 @@ plt.gca().invert_yaxis()
 plt.savefig('figures/corr_coeff/correlation_matrix_intradev1.png', dpi=300, bbox_inches='tight')
 
 # Example: across-device correlation using one sample from each demo device
-devs = [create_dataset(df, 10000)[-1:] for df in [df1, df2, df3]]
+devs = [create_dataset(df, 1000)[-1:] for df in [df1, df2, df3]]
 acrossdev_data = np.concatenate(devs, axis=0)
 device_labels = ["D1", "D2", "D3"]
 
