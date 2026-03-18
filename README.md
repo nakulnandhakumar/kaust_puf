@@ -10,7 +10,7 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
 
 ## Quick Start
 
-1. Place the CSV data of chaotic-VCSEL CRPs in locations expected by the scripts, or replace the demo placeholder filenames with your own paths.  
+1. Prepare the chaos-based CRP inputs according to the local data organization, and update the demo placeholder filenames in the scripts as needed.  
 2. Train or evaluate the CNN classifier using `puf_classifier_save_model.py`, or load a model from `saved_models/`.  
 3. Use `VAE.py` to generate synthetic sequences for adversarial training.  
 4. Evaluate entropy, Lyapunov exponent, correlation, and Hamming distance via `statistical_evaluation/`.  
