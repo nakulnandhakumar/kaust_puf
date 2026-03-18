@@ -6,17 +6,16 @@ Hamming Distance (HD) Calculation Demo
 --------------------------------------
 This script computes intra- and inter-device Hamming distances
 from demo PUF response sequences. Results are saved to CSV and
-plotted as histograms with mean values indicated.
+summary statistics are printed to stdout.
 """
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from brokenaxes import brokenaxes
 
 # ----------------------------- Load Data ---------------------------------------
 
-file_name = "Demo_File.csv"   # demo placeholder, replace with your own data
+# Demo placeholder input file.
+file_name = "Demo_Stat_Input.csv"
 data = pd.read_csv(file_name)
 
 # Use the 5th column (index 4), take 1,000,000 points, reshape to 1000 samples × 1000 points
@@ -72,29 +71,6 @@ intra_hd_df = pd.DataFrame({"Intra-HD": intra_distances})
 inter_hd_df = pd.DataFrame({"Inter-HD": inter_distances})
 output_data = pd.concat([intra_hd_df, inter_hd_df], axis=1)
 output_data.to_csv("outputHD_demo.csv", index=False)
-
-# ----------------------------- Visualization -----------------------------------
-
-plt.rcParams['font.family'] = 'Arial'
-fig = plt.figure(figsize=(12,10))
-bax = brokenaxes(xlims=((0, 0.1), (0.3, 0.6)), hspace=0.001, despine=False)
-
-bax.hist(intra_distances, bins=10, alpha=0.7, label='Intra-HD', density=True,
-         color='#A6BEE1', histtype='bar', edgecolor='#006BAC', linewidth=1.2)
-bax.hist(inter_distances, bins=40, alpha=0.7, label='Inter-HD', density=True,
-         color='#BFA6D9', histtype='bar', edgecolor='#490093', linewidth=1.2)
-
-bax.axvline(np.mean(intra_distances), color='#006BAC', linestyle='--',
-            label=f'Intra-HD Mean={np.mean(intra_distances):.4f}', linewidth=2.5)
-bax.axvline(np.mean(inter_distances), color='#490093', linestyle='--',
-            label=f'Inter-HD Mean={np.mean(inter_distances):.4f}', linewidth=2.5)
-
-bax.tick_params(axis='both', labelsize=35)
-bax.set_xlabel('HD (Norm.)', labelpad=40, fontsize=45)
-bax.set_ylabel('Counts', labelpad=40, fontsize=45)
-bax.legend(fontsize=38)
-
-plt.show()
 
 # ----------------------------- Print Summary -----------------------------------
 

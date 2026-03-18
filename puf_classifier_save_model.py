@@ -4,12 +4,11 @@
 """
 PUF Classifier with 1D CNN
 --------------------------
-This script trains a CNN-based classifier for PUF responses, with both
+This script trains a CNN-based classifier for demo PUF responses, with both
 multi-class and auxiliary binary outputs. The number of classes is inferred
-from the dataset labels.
+from the labels assembled in the current run.
 """
 
-import os
 import numpy as np
 import pandas as pd
 import torch
@@ -17,9 +16,6 @@ import torch.nn as nn
 import torch.optim as optim
 
 from torch.utils.data import DataLoader, TensorDataset, random_split
-from sklearn.metrics import confusion_matrix
-import matplotlib.pyplot as plt
-import seaborn as sns
 
 
 # ----------------------------- Model Definition ---------------------------------
@@ -83,6 +79,8 @@ def create_dataset(df: pd.DataFrame, sequence_size: int) -> np.ndarray:
         data[i*sequence_size:(i+1)*sequence_size]
         for i in range(num_samples)
     ])
+    if X.size == 0:
+        raise ValueError(f"No full sequences of length {sequence_size} could be created from the input data.")
     X = np.expand_dims(X, axis=1)  # add channel dimension
 
     # Normalize to [-1, 1]
@@ -95,7 +93,7 @@ def create_dataset(df: pd.DataFrame, sequence_size: int) -> np.ndarray:
 # ----------------------------- Training and Eval --------------------------------
 
 def train_and_evaluate(X, Y, B, sequence_size, device, num_epochs=10):
-    """Train CNN with both multi-class and binary objectives."""
+    """Train CNN with both multi-class and binary objectives and report train/val accuracy."""
     num_classes = len(np.unique(Y))
     input_length = X.shape[2]
     model = CNN(input_length, num_classes).to(device)
@@ -134,24 +132,25 @@ def train_and_evaluate(X, Y, B, sequence_size, device, num_epochs=10):
             correct_bin += (pred_bin == y_bin).sum().item()
             total += y_multi.size(0)
 
+        model.eval()
+        val_correct_multi, val_correct_bin, val_total = 0, 0, 0
+        with torch.no_grad():
+            for x, y_multi, y_bin in val_loader:
+                x, y_multi, y_bin = x.to(device), y_multi.to(device), y_bin.to(device)
+                out_multi, out_bin = model(x)
+                _, pred_multi = torch.max(out_multi, 1)
+                val_correct_multi += (pred_multi == y_multi).sum().item()
+                pred_bin = (out_bin.squeeze() >= 0.5).float()
+                val_correct_bin += (pred_bin == y_bin).sum().item()
+                val_total += y_multi.size(0)
+
         print(f"Epoch {epoch+1}/{num_epochs} | "
               f"Train Multi: {100*correct_multi/total:.2f}% | "
-              f"Train Bin: {100*correct_bin/total:.2f}%")
+              f"Train Bin: {100*correct_bin/total:.2f}% | "
+              f"Val Multi: {100*val_correct_multi/max(1, val_total):.2f}% | "
+              f"Val Bin: {100*val_correct_bin/max(1, val_total):.2f}%")
 
     return model
-
-
-def plot_confusion_matrix(cm, labels, save_path=None):
-    """Plot and optionally save a confusion matrix."""
-    plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-                xticklabels=labels, yticklabels=labels)
-    plt.xlabel("Predicted")
-    plt.ylabel("Actual")
-    if save_path:
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        plt.savefig(save_path, dpi=200)
-    plt.close()
 
 
 # ----------------------------- Main ---------------------------------------------
@@ -160,10 +159,10 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     sequence_size = 10000
 
-    # Demo: replace with your real CSV files
-    df1 = pd.read_csv("Demo_Target_Challenge.csv")
-    df2 = pd.read_csv("Demo_Non-Target_Challenge1.csv")
-    df3 = pd.read_csv("Demo_Non-Target_Challenge2.csv")
+    # Demo placeholder input files.
+    df1 = pd.read_csv("Demo_Classifier_Target_Challenge.csv")
+    df2 = pd.read_csv("Demo_Classifier_NonTarget_Challenge_1.csv")
+    df3 = pd.read_csv("Demo_Classifier_NonTarget_Challenge_2.csv")
 
     X1, X2, X3 = [create_dataset(df, sequence_size) for df in (df1, df2, df3)]
     Y1, Y2, Y3 = np.zeros(len(X1)), np.ones(len(X2)), np.full(len(X3), 2)

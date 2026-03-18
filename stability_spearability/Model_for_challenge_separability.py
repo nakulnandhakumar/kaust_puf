@@ -134,33 +134,35 @@ def progressive_training_test_single(device, condition_type):
     then test intermediate conditions to estimate separability threshold.
     """
     if condition_type == "Temperature":
+        # Demo placeholder input files.
         conditions = [
-            (17.00, "Demo_Temp_17.00C.csv"),
-            (17.01, "Demo_Temp_17.01C.csv"),
-            (17.02, "Demo_Temp_17.02C.csv"),
-            (17.03, "Demo_Temp_17.03C.csv"),
-            (17.04, "Demo_Temp_17.04C.csv"),
-            (17.05, "Demo_Temp_17.05C.csv"),
-            (17.06, "Demo_Temp_17.06C.csv"),
-            (17.07, "Demo_Temp_17.07C.csv"),
-            (17.08, "Demo_Temp_17.08C.csv"),
-            (17.09, "Demo_Temp_17.09C.csv"),
-            (17.10, "Demo_Temp_17.10C.csv"),
+            (17.00, "Demo_Separability_Temp_17.00C.csv"),
+            (17.01, "Demo_Separability_Temp_17.01C.csv"),
+            (17.02, "Demo_Separability_Temp_17.02C.csv"),
+            (17.03, "Demo_Separability_Temp_17.03C.csv"),
+            (17.04, "Demo_Separability_Temp_17.04C.csv"),
+            (17.05, "Demo_Separability_Temp_17.05C.csv"),
+            (17.06, "Demo_Separability_Temp_17.06C.csv"),
+            (17.07, "Demo_Separability_Temp_17.07C.csv"),
+            (17.08, "Demo_Separability_Temp_17.08C.csv"),
+            (17.09, "Demo_Separability_Temp_17.09C.csv"),
+            (17.10, "Demo_Separability_Temp_17.10C.csv"),
         ]
         unit = "°C"
     else:  # Current
+        # Demo placeholder input files.
         conditions = [
-            (50.00, "Demo_Curr_50.00mA.csv"),
-            (50.01, "Demo_Curr_50.01mA.csv"),
-            (50.02, "Demo_Curr_50.02mA.csv"),
-            (50.03, "Demo_Curr_50.03mA.csv"),
-            (50.04, "Demo_Curr_50.04mA.csv"),
-            (50.05, "Demo_Curr_50.05mA.csv"),
-            (50.06, "Demo_Curr_50.06mA.csv"),
-            (50.07, "Demo_Curr_50.07mA.csv"),
-            (50.08, "Demo_Curr_50.08mA.csv"),
-            (50.09, "Demo_Curr_50.09mA.csv"),
-            (50.10, "Demo_Curr_50.10mA.csv"),
+            (50.00, "Demo_Separability_Current_50.00mA.csv"),
+            (50.01, "Demo_Separability_Current_50.01mA.csv"),
+            (50.02, "Demo_Separability_Current_50.02mA.csv"),
+            (50.03, "Demo_Separability_Current_50.03mA.csv"),
+            (50.04, "Demo_Separability_Current_50.04mA.csv"),
+            (50.05, "Demo_Separability_Current_50.05mA.csv"),
+            (50.06, "Demo_Separability_Current_50.06mA.csv"),
+            (50.07, "Demo_Separability_Current_50.07mA.csv"),
+            (50.08, "Demo_Separability_Current_50.08mA.csv"),
+            (50.09, "Demo_Separability_Current_50.09mA.csv"),
+            (50.10, "Demo_Separability_Current_50.10mA.csv"),
         ]
         unit = "mA"
 
@@ -172,11 +174,13 @@ def progressive_training_test_single(device, condition_type):
     all_data, all_labels, all_values = [], [], []
     for i, (value, file_path) in enumerate(conditions):
         try:
-            df = pd.read_csv(file_path, usecols=[0])  # demo: assume one column
+            df = pd.read_csv(file_path, usecols=[0])  # demo placeholder CSV: one numeric column
             segs = create_segments(df, SEQUENCE_SIZE)
+            if segs.size == 0:
+                raise ValueError(f"No sequences were created from {file_path}")
             # Normalize to [-1, 1]
             mn, mx = segs.min(), segs.max()
-            segs = 2 * (segs - mn) / (mx - mn) - 1
+            segs = 2 * (segs - mn) / (mx - mn + 1e-12) - 1
             all_data.append(segs)
             all_labels.append(np.full(len(segs), i))
             all_values.append(value)

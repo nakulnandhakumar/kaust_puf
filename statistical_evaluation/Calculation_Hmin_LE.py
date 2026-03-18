@@ -164,7 +164,8 @@ def compute_le_with_fallback(signal):
 # ----------------------------- Main --------------------------------------------
 
 if __name__ == "__main__":
-    file_paths = ['Demo_File.csv']  # demo placeholder
+    # Demo placeholder input files.
+    file_paths = ['Demo_Stat_Input.csv']
 
     results = []
     for fp in file_paths:

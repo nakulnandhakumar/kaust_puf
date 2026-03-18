@@ -211,22 +211,25 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
+    # Demo placeholder input files.
     # Training data: baseline + nearby conditions
     train_files = [
-        ("Demo-0min.csv", 0),
-        ("Demo-16.90C.csv", 1),
-        ("Demo-17.10C.csv", 2),
-        ("Demo-49.90mA.csv", 3),
-        ("Demo-50.10mA.csv", 4),
+        ("Demo_Stability_Time_0min.csv", 0),
+        ("Demo_Stability_Temp_16.90C.csv", 1),
+        ("Demo_Stability_Temp_17.10C.csv", 2),
+        ("Demo_Stability_Current_49.90mA.csv", 3),
+        ("Demo_Stability_Current_50.10mA.csv", 4),
     ]
 
     # Load and preprocess
     train_segments, train_Y, val_segments, val_Y = [], [], [], []
     for path, label in train_files:
-        df = pd.read_csv(path, usecols=[0])  # demo: one column
+        df = pd.read_csv(path, usecols=[0])  # demo placeholder CSV: one numeric column
         segs = create_segments(df, SEQUENCE_SIZE)
+        if segs.size == 0:
+            raise ValueError(f"No sequences were created from {path}")
         mn, mx = segs.min(), segs.max()
-        segs = 2 * (segs - mn) / (mx - mn) - 1
+        segs = 2 * (segs - mn) / (mx - mn + 1e-12) - 1
         n, split = len(segs), int(TRAIN_VAL_RATIO * len(segs))
         idx = np.random.permutation(n)
         train_segments.append(segs[idx[:split]])
@@ -249,23 +252,25 @@ if __name__ == "__main__":
     else:
         model.load_state_dict(torch.load(MODEL_PATH))
 
-    # Test data at different time intervals
+    # Demo placeholder input files for test data at different time intervals.
     test_files = [
-        ("0", "Demo-0min.csv", 0),
-        ("10", "Demo-10min.csv", 0),
-        ("20", "Demo-20min.csv", 0),
-        ("30", "Demo-30min.csv", 0),
-        ("40", "Demo-40min.csv", 0),
-        ("50", "Demo-50min.csv", 0),
-        ("60", "Demo-60min.csv", 0),
+        ("0", "Demo_Stability_Time_0min.csv", 0),
+        ("10", "Demo_Stability_Time_10min.csv", 0),
+        ("20", "Demo_Stability_Time_20min.csv", 0),
+        ("30", "Demo_Stability_Time_30min.csv", 0),
+        ("40", "Demo_Stability_Time_40min.csv", 0),
+        ("50", "Demo_Stability_Time_50min.csv", 0),
+        ("60", "Demo_Stability_Time_60min.csv", 0),
     ]
 
     test_loaders = []
     for name, path, label in test_files:
         df = pd.read_csv(path, usecols=[0])
         segs = create_segments(df, SEQUENCE_SIZE)
+        if segs.size == 0:
+            raise ValueError(f"No sequences were created from {path}")
         mn, mx = segs.min(), segs.max()
-        segs = 2 * (segs - mn) / (mx - mn) - 1
+        segs = 2 * (segs - mn) / (mx - mn + 1e-12) - 1
         dummy_labels = np.zeros(len(segs), dtype=np.int64)
         test_ds = PUFArrayDataset(segs, dummy_labels)
         test_loaders.append((name, DataLoader(test_ds, batch_size=BATCH_SIZE, shuffle=False), label))

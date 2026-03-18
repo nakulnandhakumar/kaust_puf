@@ -10,19 +10,18 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
 
 ## Quick Start
 
-1. Place the CSV data of chaotic-VCSEL CRPs into a `data/` folder.  
-2. Train or evaluate the CNN classifier using `PUF_Classifier.py`, or load a model from `saved_models/`.  
+1. Place the CSV data of chaotic-VCSEL CRPs in locations expected by the scripts, or replace the demo placeholder filenames with your own paths.  
+2. Train or evaluate the CNN classifier using `puf_classifier_save_model.py`, or load a model from `saved_models/`.  
 3. Use `VAE.py` to generate synthetic sequences for adversarial training.  
 4. Evaluate entropy, Lyapunov exponent, correlation, and Hamming distance via `statistical_evaluation/`.  
 5. Simulate black-box and gray-box adversarial attacks using `adversary_emulation/`.  
 6. Assess long-term stability and fine-grained challenge separability using `stability_spearability/`.  
 7. Visualize key evolution over time using `QRcode.py`.  
-8. For large-scale experiments, use job scripts under `jobscripts/` for KAUST IBEX.
 
 
 ## Structure
 
-### **1. `PUF_Classifier.py`**  
+### **1. `puf_classifier_save_model.py`**  
 - Implements a 1D Convolutional Neural Network (CNN) to:  
   - Classify CRP sequences and identify the source VCSEL.  
   - Load and process time-series intensity data from CSV files.
@@ -34,8 +33,8 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
 
 ### **3. `adversary_emulation/`**  
 - Simulates common attack scenarios using:  
-  - `Blackbox_Attack.py`: Mimics a setting where the attacker has no access to model internals.  
-  - `Graybox_Attack.py`: Assumes partial knowledge of model structure or parameters.
+  - `Blackbox_attack.py`: Mimics a setting where the attacker has no access to model internals.  
+  - `Graybox_attack.py`: Assumes partial knowledge of model structure or parameters.
 
 ### **4. `saved_models/`**  
 - Contains pre-trained CNN weights:  
@@ -46,7 +45,7 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
 - Provides scripts to quantify key metrics from chaotic sequences:  
   - `Calculation_Hmin_LE.py`: Minimum entropy and Lyapunov exponent.  
   - `Calculation_HD.py`: Fractional Hamming distance.  
-  - `corr_coeff.py`: Pearson correlation coefficients.
+  - `Corr_coeff.py`: Pearson correlation coefficients.
 
 ### **6. `stability_spearability/`**  
 - Evaluates classifier performance under deployment-relevant conditions:  
@@ -57,8 +56,6 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
 - Encodes segments of chaotic sequences into standardized QR codes.  
 - Demonstrates the system's ability to continuously generate scannable keys over time.
 
-### **8. `jobscripts/`**  
-- Shell scripts for distributed training and evaluation on the KAUST IBEX supercomputing platform.
 
 
 
@@ -69,15 +66,13 @@ This repository relies on several Python libraries for data processing, visualiz
 | Dependency    | Description                                                                 |
 |---------------|-----------------------------------------------------------------------------|
 | `numpy`       | Fundamental package for numerical computations and array manipulation.     |
-| `matplotlib`  | Library for creating static, interactive, and animated visualizations.     |
 | `pandas`      | Data manipulation and analysis tool for handling structured datasets.      |
 | `pytorch`     | Deep learning framework for building and training neural networks.         |
 | `scipy`       | Scientific computing library with modules for optimization, integration, and statistics. |
-| `seaborn`     | Statistical data visualization library built on top of matplotlib.         |
 
 **Installation:** It is recommended to set up a virtual environment and conduct all project work inside. Install all required dependencies inside virtual environment via `pip`:
 ```bash
-pip install numpy matplotlib pandas torch scipy seaborn
+pip install numpy pandas torch scipy
 ```
 
 

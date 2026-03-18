@@ -156,10 +156,10 @@ def prepare_limited_dataset(real_data_ratio=0.2, fake_data_ratio=0.15, sequence_
     Prepare attacker dataset from limited real samples + optional fake contamination.
     - real_data_ratio: fraction of available real sequences to sample (0..1).
     - fake_data_ratio: fraction relative to sampled real used as contamination.
-    Uses demo file names; replace with real paths when running experiments.
+    Demo placeholder input files are used here.
     """
     print("Loading real data (demo placeholder)...")
-    df_real = pd.read_csv("Demo_True.csv")  # DEMO placeholder
+    df_real = pd.read_csv("Demo_Attack_True.csv")  # demo placeholder
     X_real_full = split_into_sequences(df_real, sequence_length)
     num_real_samples = max(1, int(len(X_real_full) * real_data_ratio))
     real_indices = random.sample(range(len(X_real_full)), num_real_samples)
@@ -167,7 +167,7 @@ def prepare_limited_dataset(real_data_ratio=0.2, fake_data_ratio=0.15, sequence_
     print(f"Selected {len(X_real_limited)} real samples (ratio={real_data_ratio})")
 
     print("Loading fake data (demo placeholder)...")
-    df_fake = pd.read_csv("Demo_Fake.csv")  # DEMO placeholder
+    df_fake = pd.read_csv("Demo_Attack_Fake.csv")  # demo placeholder
     X_fake_full = split_into_sequences(df_fake, sequence_length)
     num_fake = int(len(X_real_limited) * fake_data_ratio)
     num_fake = min(num_fake, len(X_fake_full))
@@ -515,13 +515,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    # Prepare demo attacker dataset (only demo file names used)
+    # Demo placeholder input files are used here.
     X_attacker, n_real, n_fake = prepare_limited_dataset(real_data_ratio=0.5, fake_data_ratio=0.1, sequence_length=10000)
     print(f"Attacker dataset prepared: {n_real} real samples, {n_fake} fake samples (total {len(X_attacker)})")
 
     # Demo model paths (replace these with your trained model files)
-    original_model_path = "Original_model_path.pth"
-    enhanced_model_path = "Enhanced_model_path.pth"
+    original_model_path = "Demo_Original_Model.pth"
+    enhanced_model_path = "Demo_Enhanced_Model.pth"
 
     # Test enhanced and original models (order does not matter)
     enhanced_stats, enhanced_history = test_greybox_model(enhanced_model_path, X_attacker, device, model_name="Enhanced")

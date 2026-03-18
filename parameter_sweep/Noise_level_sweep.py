@@ -140,11 +140,11 @@ print(f"Using device: {device}")
 sequence_size = 10000
 results = []
 
-# --- Load demo CSVs (replace with your own dataset) ---
-df_real = pd.read_csv("Demo_Device_Real.csv")
-df_fake = pd.read_csv("Demo_Device_Fake.csv")
-df_real_probe = pd.read_csv("Demo_Device_Real_Probe.csv")
-df_fake_probe = pd.read_csv("Demo_Device_Fake_Probe.csv")
+# Demo placeholder input files.
+df_real = pd.read_csv("Demo_Sweep_Device_Real.csv")
+df_fake = pd.read_csv("Demo_Sweep_Device_Fake.csv")
+df_real_probe = pd.read_csv("Demo_Sweep_Device_Real_Probe.csv")
+df_fake_probe = pd.read_csv("Demo_Sweep_Device_Fake_Probe.csv")
 
 # Slice into sequences
 X_real = create_dataset(df_real, sequence_size)

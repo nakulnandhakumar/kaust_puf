@@ -68,9 +68,9 @@ def train_and_evaluate(sequence_size):
     """Train CNN on demo data with given sequence length."""
     print(f"Training with sequence_size={sequence_size}")
 
-    # --- Load demo CSVs (replace with your own dataset) ---
-    df_real = pd.read_csv("Demo_Device_Real.csv")
-    df_fake = pd.read_csv("Demo_Device_Fake.csv")
+    # Demo placeholder input files.
+    df_real = pd.read_csv("Demo_Sweep_Device_Real.csv")
+    df_fake = pd.read_csv("Demo_Sweep_Device_Fake.csv")
 
     X_real = create_datasets(df_real, sequence_size)
     X_fake = create_datasets(df_fake, sequence_size)

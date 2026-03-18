@@ -164,7 +164,7 @@ def init_weights(m: nn.Module) -> None:
 def load_original_task_data(
     device: torch.device,
     sequence_length: int = 10000,
-    manifest_path: str = "original_task_manifest.csv"
+    manifest_path: str = "Demo_Original_Task_Manifest.csv"
 ) -> DataLoader:
     """
     Load evaluation data for the original task by a manifest CSV.
@@ -181,6 +181,8 @@ def load_original_task_data(
         arr = np.nan_to_num(arr)
         n = len(arr) // sequence_length
         segs = np.array([arr[i*sequence_length:(i+1)*sequence_length] for i in range(n)], dtype=np.float32)
+        if segs.size == 0:
+            return np.empty((0, 1, sequence_length), dtype=np.float32)
         # scale to [-1, 1] per file
         mn, mx = segs.min(), segs.max()
         eps = 1e-12
@@ -300,7 +302,7 @@ def train_vae_with_adversarial_cnn(
     epochs: int = 250,
     latent_dim: int = 128,
     sequence_length: int = 10000,
-    manifest_path: str = "original_task_manifest.csv"
+    manifest_path: str = "Demo_Original_Task_Manifest.csv"
 ):
     """
     Train VAE while adversarially finetuning CNN to detect reconstructions,
@@ -559,15 +561,15 @@ def extract_and_save_latent_and_signals(
 def main():
     parser = argparse.ArgumentParser(description="Train VAE with adversarial CNN finetuning.")
 
-    # Replace Demo data with true samples
-    parser.add_argument("--true_csv", type=str, default="Demo_True.csv",
+    # Demo placeholder input file.
+    parser.add_argument("--true_csv", type=str, default="Demo_VAE_True.csv",
                         help="Path to CSV file containing 'true' samples for training the VAE "
-                        "(demo filename shown; user must provide their own data).")
+                        "(demo placeholder path shown).")
 
     parser.add_argument("--sequence_length", type=int, default=10000)
     parser.add_argument("--cnn_weights", type=str, default="./saved_models/Original_CNN.pth")
     parser.add_argument("--num_classes", type=int, default=3, help="set to original training class count")
-    parser.add_argument("--manifest", type=str, default="original_task_manifest.csv")
+    parser.add_argument("--manifest", type=str, default="Demo_Original_Task_Manifest.csv")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--latent_dim", type=int, default=128)
     parser.add_argument("--out_latent_csv", type=str, default="latent_and_signals_review.csv")

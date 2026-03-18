@@ -18,11 +18,7 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
 import pandas as pd
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
-import csv
 import random
-import time
-from collections import defaultdict, deque
 import torch.fft
 
 # ----------------------------- CNN Detector ------------------------------------
@@ -111,37 +107,45 @@ class VAE(nn.Module):
 
 def split_into_sequences(df, sequence_length):
     """Split long 1D series into normalized sequences of fixed length."""
-    data = df.iloc[:, 0].values
+    data = df.iloc[:, 0].values.astype(np.float32)
     data = np.nan_to_num(data, nan=0.0)
     data_min, data_max = data.min(), data.max()
-    data = 2 * (data - data_min) / (data_max - data_min) - 1
+    data = 2 * (data - data_min) / (data_max - data_min + 1e-12) - 1
     num_sequences = len(data) // sequence_length
-    return np.array([data[i * sequence_length:(i + 1) * sequence_length] for i in range(num_sequences)])
+    return np.array([data[i * sequence_length:(i + 1) * sequence_length] for i in range(num_sequences)], dtype=np.float32)
 
 
 def prepare_limited_dataset(real_data_ratio=1, fake_data_ratio=0, sequence_length=10000):
-    """Prepare attacker dataset with limited real samples and optional fake contamination."""
-    print("Loading real data (legitimate PUF responses)...")
-    df_real = pd.read_csv("Demo_True.csv")
-    X_real_full = split_into_sequences(df_real, sequence_length)
+    """Prepare attacker dataset with limited real samples and optional fake contamination.
 
-    num_real_samples = int(len(X_real_full) * real_data_ratio)
+    Demo placeholder input files are used here.
+    """
+    print("Loading real data (demo placeholder)...")
+    df_real = pd.read_csv("Demo_Attack_True.csv")
+    X_real_full = split_into_sequences(df_real, sequence_length)
+    if len(X_real_full) == 0:
+        raise ValueError("No real sequences were created. Check the input CSV length and sequence_length.")
+
+    num_real_samples = max(1, int(len(X_real_full) * real_data_ratio))
     real_indices = random.sample(range(len(X_real_full)), num_real_samples)
     X_real_limited = X_real_full[real_indices]
 
     print(f"Selected {len(X_real_limited)} real samples ({real_data_ratio * 100}%)")
-    print("Loading fake data for contamination...")
+    print("Loading fake data (demo placeholder)...")
 
-    df_fake = pd.read_csv("Demo_Fake.csv")
+    df_fake = pd.read_csv("Demo_Attack_Fake.csv")
     X_fake_full = split_into_sequences(df_fake, sequence_length)
+    if len(X_fake_full) == 0 and fake_data_ratio > 0:
+        raise ValueError("No fake sequences were created. Check the input CSV length and sequence_length.")
 
     num_fake_samples = int(len(X_real_limited) * fake_data_ratio)
-    fake_indices = random.sample(range(len(X_fake_full)), num_fake_samples)
-    X_fake_contamination = X_fake_full[fake_indices]
+    num_fake_samples = min(num_fake_samples, len(X_fake_full))
+    fake_indices = random.sample(range(len(X_fake_full)), num_fake_samples) if num_fake_samples > 0 else []
+    X_fake_contamination = X_fake_full[fake_indices] if len(fake_indices) > 0 else np.empty((0, sequence_length), dtype=np.float32)
 
     print(f"Added {len(X_fake_contamination)} fake samples ({fake_data_ratio * 100}% of real data)")
 
-    X_attacker = np.vstack([X_real_limited, X_fake_contamination])
+    X_attacker = np.vstack([X_real_limited, X_fake_contamination]) if X_fake_contamination.size else X_real_limited
     indices = np.random.permutation(len(X_attacker))
     return X_attacker[indices], len(X_real_limited), len(X_fake_contamination)
 
@@ -242,11 +246,17 @@ def train_true_blackbox_vae(X_attacker, query_system, device, epochs=200, latent
     """Train VAE adversary with black-box queries to CNN detector."""
     dataset = TensorDataset(torch.tensor(X_attacker, dtype=torch.float32).unsqueeze(1))
     train_size = int(0.8 * len(dataset))
-    train_dataset, val_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
+    train_dataset, _ = random_split(dataset, [train_size, len(dataset) - train_size])
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 
     vae = VAE(input_length=X_attacker.shape[1], latent_dim=latent_dim).to(device)
-    vae.apply(lambda m: nn.init.xavier_uniform_(m.weight) if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d, nn.Linear)) else None)
+    def init_weights(m):
+        if isinstance(m, (nn.Conv1d, nn.ConvTranspose1d, nn.Linear)):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+
+    vae.apply(init_weights)
 
     optimizer = optim.Adam(vae.parameters(), lr=2e-3, weight_decay=1e-5)
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 100, 200], gamma=0.5)
@@ -309,12 +319,12 @@ if __name__ == '__main__':
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
 
-    # Prepare demo attacker dataset
+    # Demo placeholder input files are used here.
     X_attacker, num_real, num_fake = prepare_limited_dataset(real_data_ratio=1, fake_data_ratio=0)
     print(f"Prepared attacker dataset: {num_real} real, {num_fake} fake samples")
 
     # Paths to demo CNN models
-    original_cnn_path, enhanced_cnn_path = "Original_model_path.pth", "Enhanced_model_path.pth"
+    original_cnn_path, enhanced_cnn_path = "Demo_Original_Model.pth", "Demo_Enhanced_Model.pth"
 
     # Attack both models
     results_original = test_single_model(original_cnn_path, X_attacker, device, model_name="Original")
