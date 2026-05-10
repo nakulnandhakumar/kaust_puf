@@ -27,7 +27,7 @@ import gc
 
 SEQUENCE_SIZE = 10000
 BATCH_SIZE = 32
-MODEL_PATH = "saved_models/Separability_Original_CNN.pth"
+MODEL_PATH = "saved_models/Separability_CNN_N_classes.pth"
 os.makedirs("saved_models", exist_ok=True)
 
 
@@ -103,18 +103,18 @@ class CNN(nn.Module):
         super().__init__()
         k, p = 100, 10
         self.conv1 = nn.Conv1d(1, 32, kernel_size=k)
-        self.bn1 = nn.BatchNorm1d(32)
+        self.batch_norm1 = nn.BatchNorm1d(32)
         self.pool = nn.MaxPool1d(p)
         flat = 32 * ((seq_len - k + 1) // p)
         self.fc1 = nn.Linear(flat, 128)
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 32)
         self.drop = nn.Dropout(0.5)
-        self.fcm = nn.Linear(32, num_classes)
+        self.fc_multi = nn.Linear(32, num_classes)
 
     def forward(self, x):
         x = torch.relu(self.conv1(x))
-        x = self.bn1(x)
+        x = self.batch_norm1(x)
         x = self.pool(x)
         x = x.view(x.size(0), -1)
         x = torch.relu(self.fc1(x))
@@ -122,7 +122,7 @@ class CNN(nn.Module):
         x = torch.relu(self.fc2(x))
         x = self.drop(x)
         feat = torch.relu(self.fc3(x))
-        logits = self.fcm(feat)
+        logits = self.fc_multi(feat)
         return logits, feat
 
 
@@ -197,6 +197,7 @@ def progressive_training_test_single(device, condition_type):
     train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
     # Train CNN
+    # N is the number of endpoint classes used in this separability test.
     prog_model = CNN(SEQUENCE_SIZE, len(train_indices)).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(prog_model.parameters(), lr=0.001, weight_decay=1e-4)

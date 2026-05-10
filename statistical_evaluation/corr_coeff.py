@@ -5,13 +5,17 @@
 Correlation Coefficient Analysis (Demo)
 ---------------------------------------
 This script computes correlation matrices of PUF response sequences:
-- Within one device (intra-device correlation)
-- Across multiple devices (inter-device correlation)
+- Within-device pairwise correlations across multiple windows
+- Inter-device pairwise correlations across multiple windows from each device
 - Numeric correlation matrices are printed instead of plotted.
 """
 
 import pandas as pd
 import numpy as np
+
+
+SEQUENCE_SIZE = 1000
+MAX_WINDOWS_PER_DEVICE = 500
 
 # ----------------------------- Dataset Utils -----------------------------------
 
@@ -31,29 +35,98 @@ def create_dataset(df, sequence_size):
     return 2 * (X - min_val) / (max_val - min_val + 1e-12) - 1
 
 
+def normalize_windows(X):
+    """Center and L2-normalize each window for Pearson pairwise correlations."""
+    X = np.asarray(X, dtype=np.float64)
+    X_centered = X - X.mean(axis=1, keepdims=True)
+    norms = np.linalg.norm(X_centered, axis=1, keepdims=True)
+    valid = norms[:, 0] > 1e-12
+    if not np.any(valid):
+        raise ValueError("All windows are constant; correlation is undefined.")
+    return X_centered[valid] / norms[valid]
+
+
+def pairwise_corr_values(A, B, same_device=False):
+    """
+    Return pairwise Pearson correlations between rows of A and B.
+    For same-device comparisons, the diagonal self-correlations are removed.
+    """
+    corr = normalize_windows(A) @ normalize_windows(B).T
+    if same_device:
+        upper = np.triu_indices_from(corr, k=1)
+        return corr[upper]
+    return corr.reshape(-1)
+
+
+def summarize(values):
+    """Compact numeric summary for a vector of pairwise correlations."""
+    if values.size == 0:
+        return {
+            "n_pairs": 0,
+            "mean_corr": np.nan,
+            "std_corr": np.nan,
+            "min_corr": np.nan,
+            "max_corr": np.nan,
+        }
+    return {
+        "n_pairs": int(values.size),
+        "mean_corr": float(np.mean(values)),
+        "std_corr": float(np.std(values)),
+        "min_corr": float(np.min(values)),
+        "max_corr": float(np.max(values)),
+    }
+
+
 # ----------------------------- Load Demo Data ----------------------------------
 
 # Demo placeholder input files.
 # Each file should contain one numeric column.
-df1 = pd.read_csv("Demo_Corr_Device_1.csv")
-df2 = pd.read_csv("Demo_Corr_Device_2.csv")
-df3 = pd.read_csv("Demo_Corr_Device_3.csv")
+device_files = {
+    "D1": "Demo_Corr_Device_1.csv",
+    "D2": "Demo_Corr_Device_2.csv",
+    "D3": "Demo_Corr_Device_3.csv",
+}
 
 # ----------------------------- Correlation Analysis ----------------------------
 
-# Example: within-device correlation for Device 1
-X1 = create_dataset(df1, 1000)
-corr_coeff_within_dev = X1[:500]  # take first 500 sequences for demo
-corr_coeff_within_dev_mat = np.corrcoef(corr_coeff_within_dev, rowvar=True)
+datasets = {}
+for label, path in device_files.items():
+    df = pd.read_csv(path)
+    windows = create_dataset(df, SEQUENCE_SIZE)[:MAX_WINDOWS_PER_DEVICE]
+    if len(windows) < 2:
+        raise ValueError(f"{path} must contain at least two full windows for pairwise correlation.")
+    datasets[label] = windows
 
-# Example: across-device correlation using one sample from each demo device
-devs = [create_dataset(df, 1000)[-1:] for df in [df1, df2, df3]]
-acrossdev_data = np.concatenate(devs, axis=0)
-device_labels = ["D1", "D2", "D3"]
+device_labels = list(datasets.keys())
+mean_corr_mat = pd.DataFrame(index=device_labels, columns=device_labels, dtype=float)
+summary_rows = []
 
-corr_coeff_across_dev_mat = np.corrcoef(acrossdev_data, rowvar=True)
+for i, label_i in enumerate(device_labels):
+    for j, label_j in enumerate(device_labels):
+        same_device = i == j
+        if i > j:
+            mean_corr_mat.loc[label_i, label_j] = mean_corr_mat.loc[label_j, label_i]
+            continue
 
-print("Within-device correlation matrix (Device 1):")
-print(corr_coeff_within_dev_mat)
-print("\nAcross-device correlation matrix:")
-print(pd.DataFrame(corr_coeff_across_dev_mat, index=device_labels, columns=device_labels))
+        values = pairwise_corr_values(datasets[label_i], datasets[label_j], same_device=same_device)
+        stats = summarize(values)
+        mean_corr_mat.loc[label_i, label_j] = stats["mean_corr"]
+        if i != j:
+            mean_corr_mat.loc[label_j, label_i] = stats["mean_corr"]
+
+        summary_rows.append({
+            "device_a": label_i,
+            "device_b": label_j,
+            "comparison": "within" if same_device else "between",
+            **stats,
+        })
+
+summary_df = pd.DataFrame(summary_rows)
+summary_df.to_csv("corr_pairwise_summary.csv", index=False)
+
+print(f"Using up to {MAX_WINDOWS_PER_DEVICE} windows per device, sequence size={SEQUENCE_SIZE}.")
+print("\nMean pairwise correlation matrix:")
+print(mean_corr_mat)
+print("\nPairwise correlation summary:")
+print(summary_df)
+print("\nSaved pairwise summary to corr_pairwise_summary.csv")

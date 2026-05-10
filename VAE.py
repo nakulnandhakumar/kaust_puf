@@ -38,7 +38,7 @@ class CNN(nn.Module):
         pooling_size = 10
 
         self.conv1 = nn.Conv1d(1, 32, kernel_size=kernel_size)
-        self.bn1 = nn.BatchNorm1d(32)
+        self.batch_norm1 = nn.BatchNorm1d(32)
         self.pool = nn.MaxPool1d(pooling_size)
         self.flatten = nn.Flatten()
 
@@ -55,7 +55,7 @@ class CNN(nn.Module):
 
     def forward(self, x: torch.Tensor, return_features: bool = False):
         x = torch.relu(self.conv1(x))
-        x = self.bn1(x)
+        x = self.batch_norm1(x)
         x = self.pool(x)
         x = self.flatten(x)
 
@@ -81,6 +81,11 @@ class VAE(nn.Module):
     """
     def __init__(self, input_length: int, latent_dim: int = 128) -> None:
         super().__init__()
+        if input_length % 8 != 0:
+            raise ValueError(
+                f"VAE input_length must be divisible by 8 because the encoder "
+                f"uses three stride-2 downsampling layers; got {input_length}."
+            )
         self.input_length = input_length
 
         # Encoder
@@ -242,7 +247,7 @@ def evaluate_original_task(cnn_model: CNN, loader: DataLoader, device: torch.dev
             logits, p_bin = cnn_model(x)
             _, predm = torch.max(logits, 1)
             cm_ok += (predm == y_multi).sum().item()
-            cb_ok += ((p_bin.squeeze() >= 0.5).float() == y_bin).sum().item()
+            cb_ok += ((p_bin.squeeze(1) >= 0.5).float() == y_bin).sum().item()
             total += y_multi.size(0)
     return cm_ok / max(1, total), cb_ok / max(1, total)
 
@@ -277,18 +282,29 @@ def combined_loss(
         mean_loss = torch.tensor(0.0, device=x.device)
         std_loss = torch.tensor(0.0, device=x.device)
 
-    # Feature feedback from CNN
+    # Feature feedback from CNN. Keep the CNN in eval mode here so BatchNorm
+    # running statistics are not updated by VAE reconstructions; gradients still
+    # flow through f_fake back to x_rec and the VAE.
+    was_training = cnn_model.training
+    param_requires_grad = [p.requires_grad for p in cnn_model.parameters()]
     try:
         cnn_model.eval()
+        for p in cnn_model.parameters():
+            p.requires_grad_(False)
+
         with torch.no_grad():
             _, _, f_real = cnn_model(x, return_features=True)
-        cnn_model.train()
         _, _, f_fake = cnn_model(x_rec, return_features=True)
+
         f_real = F.normalize(f_real, dim=1)
         f_fake = F.normalize(f_fake, dim=1)
         feat = 0.7 * F.mse_loss(f_fake, f_real, reduction="mean") + 0.3 * F.l1_loss(f_fake, f_real, reduction="mean")
     except Exception:
         feat = torch.tensor(0.0, device=x.device)
+    finally:
+        for p, req in zip(cnn_model.parameters(), param_requires_grad):
+            p.requires_grad_(req)
+        cnn_model.train(was_training)
 
     kl = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp()) / x.size(0)
     total = alpha * rec + lambda_feedback * feat + lambda_kl * kl + mean_loss + std_loss
@@ -411,7 +427,7 @@ def train_vae_with_adversarial_cnn(
                 o_y_b = o_y_b.to(device)
                 logits, p = cnn_model(o_x)
                 loss_m = F.cross_entropy(logits, o_y_m)
-                loss_b = F.binary_cross_entropy(p.squeeze(), o_y_b)
+                loss_b = F.binary_cross_entropy(p.squeeze(1), o_y_b)
                 orig_loss = 0.7 * loss_m + 0.3 * loss_b
             except Exception:
                 orig_loss = torch.tensor(0.0, device=device)
@@ -446,7 +462,7 @@ def train_vae_with_adversarial_cnn(
                 x_rec, _, _ = vae(x)
                 # use binary head output directly
                 p = cnn_model(x_rec)[1]
-                val_ok += (p.squeeze() >= 0.5).float().sum().item()
+                val_ok += (p.squeeze(1) >= 0.5).float().sum().item()
                 tot += x.size(0)
             val_acc = val_ok / max(1, tot)
 
@@ -513,7 +529,7 @@ def evaluate_with_cnn(cnn_model: CNN, vae: VAE, val_loader: DataLoader, device: 
             x = x.to(device)
             x_rec, _, _ = vae(x)
             p = cnn_model(x_rec)[1]
-            correct += (p.squeeze() >= 0.5).float().sum().item()
+            correct += (p.squeeze(1) >= 0.5).float().sum().item()
             total += x.size(0)
     return correct / max(1, total)
 
@@ -540,10 +556,10 @@ def extract_and_save_latent_and_signals(
         for si, idx in enumerate(indices):
             x = dataset[idx][0].unsqueeze(0).to(device)
             enc = vae.encoder(x)
-            mu = vae.fc_mu(enc).squeeze().cpu().numpy()
+            mu = vae.fc_mu(enc).squeeze(0).cpu().numpy()
             x_rec, _, _ = vae(x)
-            orig = x.squeeze().cpu().numpy()
-            rec = x_rec.squeeze().cpu().numpy()
+            orig = x.squeeze(0).squeeze(0).cpu().numpy()
+            rec = x_rec.squeeze(0).squeeze(0).cpu().numpy()
             T = max(len(orig), len(rec))
             for t in range(T):
                 o = orig[t] if t < len(orig) else ""
@@ -567,8 +583,10 @@ def main():
                         "(demo placeholder path shown).")
 
     parser.add_argument("--sequence_length", type=int, default=10000)
-    parser.add_argument("--cnn_weights", type=str, default="./saved_models/Original_CNN.pth")
-    parser.add_argument("--num_classes", type=int, default=3, help="set to original training class count")
+    parser.add_argument("--cnn_weights", type=str, default="./saved_models/CNN_N_classes.pth")
+    # Set this to N, the same class count used when training and saving the CNN.
+    parser.add_argument("--num_classes", type=int, required=True,
+                        help="N: number of enrolled classes used by the saved CNN.")
     parser.add_argument("--manifest", type=str, default="Demo_Original_Task_Manifest.csv")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--latent_dim", type=int, default=128)
@@ -591,9 +609,7 @@ def main():
     cnn = CNN(input_length=args.sequence_length, num_classes=args.num_classes).to(device)
     if os.path.exists(args.cnn_weights):
         state = torch.load(args.cnn_weights, map_location=device)
-        missing, unexpected = cnn.load_state_dict(state, strict=False)
-        if missing or unexpected:
-            print(f"Loaded with non strict. Missing keys: {len(missing)}  Unexpected keys: {len(unexpected)}")
+        cnn.load_state_dict(state, strict=True)
     else:
         print(f"Warning CNN weights not found at {args.cnn_weights}. Using randomly initialized CNN.")
 
@@ -615,7 +631,8 @@ def main():
               f"Delta Multi {fin_m - base_m:+.4f}  Delta Binary {fin_b - base_b:+.4f}")
 
         os.makedirs("./saved_models", exist_ok=True)
-        torch.save(cnn.state_dict(), "./saved_models/Enhanced_CNN.pth")
+        # Save enhanced CNN with the same N-class head used for loading.
+        torch.save(cnn.state_dict(), "./saved_models/Enhanced_CNN_N_classes.pth")
         torch.save(vae.state_dict(), "./saved_models/VAE.pth")
 
         ds = TensorDataset(torch.tensor(X, dtype=torch.float32).unsqueeze(1))

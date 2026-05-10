@@ -14,6 +14,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import os
 
 from torch.utils.data import DataLoader, TensorDataset, random_split
 
@@ -94,6 +95,7 @@ def create_dataset(df: pd.DataFrame, sequence_size: int) -> np.ndarray:
 
 def train_and_evaluate(X, Y, B, sequence_size, device, num_epochs=10):
     """Train CNN with both multi-class and binary objectives and report train/val accuracy."""
+    # N is inferred from the labels assembled for this training run.
     num_classes = len(np.unique(Y))
     input_length = X.shape[2]
     model = CNN(input_length, num_classes).to(device)
@@ -122,13 +124,13 @@ def train_and_evaluate(X, Y, B, sequence_size, device, num_epochs=10):
 
             optim_.zero_grad()
             out_multi, out_bin = model(x)
-            loss = 0.7 * crit_multi(out_multi, y_multi) + 0.3 * crit_bin(out_bin.squeeze(), y_bin)
+            loss = 0.7 * crit_multi(out_multi, y_multi) + 0.3 * crit_bin(out_bin.squeeze(1), y_bin)
             loss.backward()
             optim_.step()
 
             _, pred_multi = torch.max(out_multi, 1)
             correct_multi += (pred_multi == y_multi).sum().item()
-            pred_bin = (out_bin.squeeze() >= 0.5).float()
+            pred_bin = (out_bin.squeeze(1) >= 0.5).float()
             correct_bin += (pred_bin == y_bin).sum().item()
             total += y_multi.size(0)
 
@@ -140,7 +142,7 @@ def train_and_evaluate(X, Y, B, sequence_size, device, num_epochs=10):
                 out_multi, out_bin = model(x)
                 _, pred_multi = torch.max(out_multi, 1)
                 val_correct_multi += (pred_multi == y_multi).sum().item()
-                pred_bin = (out_bin.squeeze() >= 0.5).float()
+                pred_bin = (out_bin.squeeze(1) >= 0.5).float()
                 val_correct_bin += (pred_bin == y_bin).sum().item()
                 val_total += y_multi.size(0)
 
@@ -173,5 +175,7 @@ if __name__ == "__main__":
     B = np.concatenate([B1, B2, B3])
 
     model = train_and_evaluate(X, Y, B, sequence_size, device)
-    torch.save(model.state_dict(), "saved_models/CNN.pth")
+    # The saved classifier keeps an N-class output head; use the same N when loading it elsewhere.
+    os.makedirs("saved_models", exist_ok=True)
+    torch.save(model.state_dict(), "saved_models/CNN_N_classes.pth")
     print("Model saved.")

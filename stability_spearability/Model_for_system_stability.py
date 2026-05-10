@@ -31,7 +31,7 @@ TRAIN_VAL_RATIO = 0.7
 EARLYSTOP_PATIENCE = 20
 LR_SCHED_PATIENCE = 7
 LR_REDUCTION_FACTOR = 0.6
-MODEL_PATH = "saved_models/Stability_Original_CNN.pth"
+MODEL_PATH = "saved_models/Stability_CNN_N_classes.pth"
 CONFIDENCE_THRESHOLD = 0.5
 
 os.makedirs("saved_models", exist_ok=True)
@@ -96,25 +96,25 @@ class CNN(nn.Module):
         super().__init__()
         k, p = 80, 8
         self.conv1 = nn.Conv1d(1, 16, kernel_size=k, stride=2)
-        self.bn1 = nn.BatchNorm1d(16)
+        self.batch_norm1 = nn.BatchNorm1d(16)
         self.pool = nn.MaxPool1d(p)
         flat_size = ((seq_len - k) // 2 + 1) // p
         flat = 16 * flat_size
         self.fc1 = nn.Linear(flat, 64)
         self.fc2 = nn.Linear(64, 32)
         self.drop = nn.Dropout(0.4)
-        self.fcm = nn.Linear(32, num_classes)
+        self.fc_multi = nn.Linear(32, num_classes)
 
     def forward(self, x):
         x = torch.relu(self.conv1(x))
-        x = self.bn1(x)
+        x = self.batch_norm1(x)
         x = self.pool(x)
         x = x.view(x.size(0), -1)
         x = torch.relu(self.fc1(x))
         x = self.drop(x)
         feat = torch.relu(self.fc2(x))
         x = self.drop(feat)
-        out = self.fcm(x)
+        out = self.fc_multi(x)
         return out, feat
 
 
@@ -195,7 +195,7 @@ def evaluate_generalization(model, test_loaders, device, confidence_threshold):
                 confidence, raw_pred = torch.max(probs, dim=1)
                 # Mark low-confidence predictions as "unknown"
                 pred = raw_pred.clone()
-                pred[confidence < confidence_threshold] = model.fcm.out_features
+                pred[confidence < confidence_threshold] = model.fc_multi.out_features
                 all_preds.extend(pred.cpu().numpy())
                 all_confidences.extend(confidence.cpu().numpy())
         acc = np.mean(np.array(all_preds) == true_label) * 100
@@ -245,6 +245,7 @@ if __name__ == "__main__":
     val_loader = DataLoader(PUFArrayDataset(X_val, Y_val), batch_size=BATCH_SIZE, shuffle=False)
 
     # Train or load model
+    # N is inferred from the stability labels and must match this saved model.
     num_classes = len(np.unique(Y_train))
     model = CNN(SEQUENCE_SIZE, num_classes).to(device)
     if not os.path.exists(MODEL_PATH):

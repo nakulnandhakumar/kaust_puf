@@ -20,6 +20,7 @@ import pandas as pd
 import torch.nn.functional as F
 import random
 import torch.fft
+import argparse
 
 # ----------------------------- CNN Detector ------------------------------------
 
@@ -35,7 +36,7 @@ class CNN(nn.Module):
         self.fc1 = nn.Linear(32 * ((input_length - kernel_size + 1) // pooling_size), 128)
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 32)
-        self.fc4 = nn.Linear(32, num_classes)
+        self.fc_multi = nn.Linear(32, num_classes)
         self.fc_binary = nn.Linear(32, 1)
         self.dropout = nn.Dropout(0.3)
 
@@ -50,7 +51,7 @@ class CNN(nn.Module):
         x = self.dropout(x)
         features = torch.relu(self.fc3(x))
 
-        multi_class_output = self.fc4(features)
+        multi_class_output = self.fc_multi(features)
         binary_output = torch.sigmoid(self.fc_binary(features))
 
         if return_features:
@@ -178,7 +179,7 @@ class TrueBlackBoxQuerySystem:
 
     def store_successful_samples(self, samples, latents, predictions):
         """Cache successful adversarial samples for replay and guidance."""
-        success_mask = predictions.squeeze() == 1
+        success_mask = predictions.squeeze(1) == 1
         if success_mask.sum() > 0:
             for sample, latent in zip(samples[success_mask], latents[success_mask]):
                 self.successful_samples.append(sample.cpu().clone())
@@ -300,10 +301,11 @@ def evaluate_attack_effectiveness(vae, cnn_model, device, num_test_samples=500):
     return preds.mean().item()
 
 
-def test_single_model(model_path, X_attacker, device, model_name="CNN", epochs=200):
+def test_single_model(model_path, X_attacker, device, num_classes, model_name="CNN", epochs=200):
     """Run attack against one CNN model (original or enhanced)."""
     print(f"\nTesting {model_name} CNN: {model_path}")
-    cnn_model = CNN(input_length=X_attacker.shape[1], num_classes=17).to(device)
+    # Use the same N-class head that was used to train and save the CNN.
+    cnn_model = CNN(input_length=X_attacker.shape[1], num_classes=num_classes).to(device)
     cnn_model.load_state_dict(torch.load(model_path, map_location=device))
     cnn_model.eval()
     query_system = TrueBlackBoxQuerySystem(cnn_model, device)
@@ -315,6 +317,14 @@ def test_single_model(model_path, X_attacker, device, model_name="CNN", epochs=2
 # ----------------------------- Main --------------------------------------------
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="Black-box VAE attack demo.")
+    # Set this to N, the same class count used by the saved CNN weights.
+    parser.add_argument("--num_classes", type=int, required=True,
+                        help="N: number of enrolled classes used by the saved CNN.")
+    parser.add_argument("--original_model", type=str, default="saved_models/CNN_N_classes.pth")
+    parser.add_argument("--enhanced_model", type=str, default="saved_models/Enhanced_CNN_N_classes.pth")
+    args = parser.parse_args()
+
     torch.manual_seed(42); np.random.seed(42); random.seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
@@ -324,11 +334,11 @@ if __name__ == '__main__':
     print(f"Prepared attacker dataset: {num_real} real, {num_fake} fake samples")
 
     # Paths to demo CNN models
-    original_cnn_path, enhanced_cnn_path = "Demo_Original_Model.pth", "Demo_Enhanced_Model.pth"
+    original_cnn_path, enhanced_cnn_path = args.original_model, args.enhanced_model
 
     # Attack both models
-    results_original = test_single_model(original_cnn_path, X_attacker, device, model_name="Original")
-    results_enhanced = test_single_model(enhanced_cnn_path, X_attacker, device, model_name="Enhanced")
+    results_original = test_single_model(original_cnn_path, X_attacker, device, args.num_classes, model_name="Original")
+    results_enhanced = test_single_model(enhanced_cnn_path, X_attacker, device, args.num_classes, model_name="Enhanced")
 
     print("\nAttack Results Summary:")
     print(results_original)

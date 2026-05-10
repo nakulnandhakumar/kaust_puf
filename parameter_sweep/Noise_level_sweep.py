@@ -30,23 +30,23 @@ class CNN(nn.Module):
         kernel_size = 100
         pooling_size = 10
         self.conv1 = nn.Conv1d(1, 32, kernel_size=kernel_size)
-        self.bn1 = nn.BatchNorm1d(32)
+        self.batch_norm1 = nn.BatchNorm1d(32)
         self.pool = nn.MaxPool1d(pooling_size)
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(32 * ((input_length - kernel_size + 1) // pooling_size), 128)
         self.fc2 = nn.Linear(128, 64)
         self.fc3 = nn.Linear(64, 32)
-        self.fc4 = nn.Linear(32, 1)
+        self.fc_binary = nn.Linear(32, 1)
 
     def forward(self, x):
         x = torch.relu(self.conv1(x))
-        x = self.bn1(x)
+        x = self.batch_norm1(x)
         x = self.pool(x)
         x = self.flatten(x)
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = torch.relu(self.fc3(x))
-        return self.fc4(x)
+        return self.fc_binary(x)
 
 
 # ----------------------------- Dataset Utils -----------------------------------
@@ -97,7 +97,7 @@ def train_and_evaluate(X, Y, sequence_size=10000, noise_percentage=0.0):
         for xb, yb in train_loader:
             xb, yb = xb.to(device), yb.to(device)
             optimizer.zero_grad()
-            out = model(xb).squeeze()
+            out = model(xb).squeeze(1)
             loss = criterion(out, yb)
             loss.backward()
             optimizer.step()
@@ -108,7 +108,7 @@ def train_and_evaluate(X, Y, sequence_size=10000, noise_percentage=0.0):
     with torch.no_grad():
         for xb, yb in val_loader:
             xb, yb = xb.to(device), yb.to(device)
-            preds = torch.round(torch.sigmoid(model(xb).squeeze()))
+            preds = torch.round(torch.sigmoid(model(xb).squeeze(1)))
             correct += (preds == yb).sum().item()
             total += yb.size(0)
 

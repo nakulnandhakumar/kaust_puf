@@ -24,12 +24,12 @@ from scipy.stats import linregress
 
 def read_and_quantize(file_path):
     """
-    Read raw sequence (single column) from CSV and quantize:
+    Read a prepared one-column sequence CSV and quantize:
     - Normalize to [0,1]
     - Scale to 0–255 and round to integers (8-bit symbols)
     Returns quantized symbols and normalized data.
     """
-    data = pd.read_csv(file_path, usecols=[4]).iloc[:, 0].dropna().values
+    data = pd.read_csv(file_path, usecols=[0]).iloc[:, 0].dropna().values
     xmin, xmax = data.min(), data.max()
     if xmax == xmin:
         raise ValueError("Normalization not available")

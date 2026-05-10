@@ -13,10 +13,12 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
 1. Prepare the chaos-based CRP inputs according to the local data organization, and update the demo placeholder filenames in the scripts as needed.  
 2. Train or evaluate the CNN classifier using `puf_classifier_save_model.py`, or load a model from `saved_models/`.  
 3. Use `VAE.py` to generate synthetic sequences for adversarial training.  
-4. Evaluate entropy, Lyapunov exponent, correlation, and Hamming distance via `statistical_evaluation/`.  
+4. Evaluate entropy, Lyapunov exponent, correlation, and auxiliary key-level Hamming distance metrics via `statistical_evaluation/`.  
 5. Simulate black-box and gray-box adversarial attacks using `adversary_emulation/`.  
 6. Assess long-term stability and fine-grained challenge separability using `stability_spearability/`.  
 7. Visualize key evolution over time using `QRcode.py`.  
+
+Set `num_classes = N` consistently across CNN training, saved CNN weights, VAE loading, and black-box/gray-box attack scripts, where `N` is the number of enrolled PUF classes in the local dataset.
 
 
 ## Structure
@@ -37,15 +39,17 @@ Each laser, under fixed physical bias (current, temperature, and device ID), pro
   - `Graybox_attack.py`: Assumes partial knowledge of model structure or parameters.
 
 ### **4. `saved_models/`**  
-- Contains pre-trained CNN weights:  
-  - `Original_CNN.pth`: Baseline model trained on raw data.  
-  - `Enhanced_CNN.pth`: Model hardened via adversarial training.
+- Stores locally generated CNN weights with an `N`-class output head:  
+  - `CNN_N_classes.pth`: Baseline model trained on raw data.  
+  - `Enhanced_CNN_N_classes.pth`: Model hardened via adversarial training.
+- The public demo does not require disclosing the dataset-specific value of `N`; keep the same `N` when saving and loading models.
 
 ### **5. `statistical_evaluation/`**  
 - Provides scripts to quantify key metrics from chaotic sequences:  
   - `Calculation_Hmin_LE.py`: Minimum entropy and Lyapunov exponent.  
-  - `Calculation_HD.py`: Fractional Hamming distance.  
+  - `Calculation_HD.py`: Fractional Hamming distance for within-key segment comparisons and between-key comparisons; this is an auxiliary bit-level statistic rather than the reproducibility/uniqueness criterion used for authentication.  
   - `Corr_coeff.py`: Pearson correlation coefficients.
+- Demo statistic inputs should be prepared as one-column numeric sequence CSV files; any mapping from local raw-data columns to that sequence format is kept outside the public demo code.
 
 ### **6. `stability_spearability/`**  
 - Evaluates classifier performance under deployment-relevant conditions:  
@@ -69,10 +73,13 @@ This repository relies on several Python libraries for data processing, visualiz
 | `pandas`      | Data manipulation and analysis tool for handling structured datasets.      |
 | `pytorch`     | Deep learning framework for building and training neural networks.         |
 | `scipy`       | Scientific computing library with modules for optimization, integration, and statistics. |
+| `scikit-learn`| Logistic regression and cross-validation utilities for separability analysis. |
+| `joblib`      | Runtime dependency used by scikit-learn in some Python environments.       |
+| `qrcode`      | QR code generation for key visualization demos.                            |
 
 **Installation:** It is recommended to set up a virtual environment and conduct all project work inside. Install all required dependencies inside virtual environment via `pip`:
 ```bash
-pip install numpy pandas torch scipy
+pip install numpy pandas torch scipy scikit-learn joblib "qrcode[pil]"
 ```
 
 

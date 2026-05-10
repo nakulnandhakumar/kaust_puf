@@ -19,6 +19,7 @@ import os
 import csv
 import time
 import random
+import argparse
 from collections import deque
 
 import numpy as np
@@ -463,7 +464,7 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
 
 # ----------------------------- Utilities & Main --------------------------------
 
-def test_greybox_model(model_path, X_attacker, device, model_name="CNN"):
+def test_greybox_model(model_path, X_attacker, device, num_classes, model_name="CNN"):
     """
     High-level runner:
       - load model_path into CNN
@@ -473,7 +474,8 @@ def test_greybox_model(model_path, X_attacker, device, model_name="CNN"):
     """
     print(f"\n=== Testing {model_name} (Grey-box) ===")
     seq_len = X_attacker.shape[1]
-    cnn_model = CNN(input_length=seq_len, num_classes=17).to(device)
+    # Use the same N-class head that was used to train and save the CNN.
+    cnn_model = CNN(input_length=seq_len, num_classes=num_classes).to(device)
     # load checkpoint; accept raw state_dict or checkpoint dicts
     ck = torch.load(model_path, map_location=device)
     if isinstance(ck, dict):
@@ -490,7 +492,7 @@ def test_greybox_model(model_path, X_attacker, device, model_name="CNN"):
     with torch.no_grad():
         sample_probe = torch.tensor(X_attacker[:4], dtype=torch.float32).unsqueeze(1).to(device)
         _, conf = cnn_model(sample_probe)
-        print("Probe confidences (demo):", [float(c) for c in conf.squeeze().tolist()])
+        print("Probe confidences (demo):", [float(c) for c in conf.reshape(-1).tolist()])
 
     query_system = GreyBoxConfidenceQuerySystem(cnn_model, device, noise_std=0.05, quant_step=0.1, confidence_threshold=0.5, max_buffer=200)
     vae, history, stats = train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, latent_dim=128, target_success_rate=0.3)
@@ -511,6 +513,14 @@ def save_greybox_results(original_stats, enhanced_stats, filename='greybox_resul
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Grey-box confidence attack demo.")
+    # Set this to N, the same class count used by the saved CNN weights.
+    parser.add_argument("--num_classes", type=int, required=True,
+                        help="N: number of enrolled classes used by the saved CNN.")
+    parser.add_argument("--original_model", type=str, default="saved_models/CNN_N_classes.pth")
+    parser.add_argument("--enhanced_model", type=str, default="saved_models/Enhanced_CNN_N_classes.pth")
+    args = parser.parse_args()
+
     torch.manual_seed(42); np.random.seed(42); random.seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Using device:", device)
@@ -520,12 +530,12 @@ if __name__ == "__main__":
     print(f"Attacker dataset prepared: {n_real} real samples, {n_fake} fake samples (total {len(X_attacker)})")
 
     # Demo model paths (replace these with your trained model files)
-    original_model_path = "Demo_Original_Model.pth"
-    enhanced_model_path = "Demo_Enhanced_Model.pth"
+    original_model_path = args.original_model
+    enhanced_model_path = args.enhanced_model
 
     # Test enhanced and original models (order does not matter)
-    enhanced_stats, enhanced_history = test_greybox_model(enhanced_model_path, X_attacker, device, model_name="Enhanced")
-    original_stats, original_history = test_greybox_model(original_model_path, X_attacker, device, model_name="Original")
+    enhanced_stats, enhanced_history = test_greybox_model(enhanced_model_path, X_attacker, device, args.num_classes, model_name="Enhanced")
+    original_stats, original_history = test_greybox_model(original_model_path, X_attacker, device, args.num_classes, model_name="Original")
 
     # Save simple summary
     save_greybox_results(original_stats, enhanced_stats, filename='greybox_results_demo.csv')
