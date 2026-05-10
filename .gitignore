@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+
+.DS_Store
+
+sweep_results/
+*.csv
+*.png
+*.pth
+latent_and_signals*.csv
+greybox_results*.csv
+corr_pairwise_summary.csv
+outputHD_demo.csv
+min_entropy_summary_with_le.csv
