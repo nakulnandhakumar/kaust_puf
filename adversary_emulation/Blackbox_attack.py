@@ -243,8 +243,8 @@ def enhanced_vae_loss_with_frequency(x_reconstructed, x, mu, logvar, successful_
 
 # ----------------------------- Training Loop -----------------------------------
 
-def train_true_blackbox_vae(X_attacker, query_system, device, epochs=200, latent_dim=128, target_success_rate=0.3, total_queries=200000):
-    """Train VAE adversary with black-box queries to CNN detector."""
+def train_true_blackbox_vae(X_attacker, query_system, device, epochs=200, latent_dim=128, target_success_rate=0.3, query_budget=100000):
+    """Train VAE adversary with a per-model black-box query budget."""
     dataset = TensorDataset(torch.tensor(X_attacker, dtype=torch.float32).unsqueeze(1))
     train_size = int(0.8 * len(dataset))
     train_dataset, _ = random_split(dataset, [train_size, len(dataset) - train_size])
@@ -275,7 +275,12 @@ def train_true_blackbox_vae(X_attacker, query_system, device, epochs=200, latent
             optimizer.step()
         # Black-box queries
         with torch.no_grad():
-            z = torch.randn(500, latent_dim).to(device)
+            remaining_queries = query_budget - query_system.query_count
+            if remaining_queries <= 0:
+                print(f"Query budget reached ({query_system.query_count}/{query_budget}).")
+                break
+            query_batch_size = min(500, remaining_queries)
+            z = torch.randn(query_batch_size, latent_dim).to(device)
             xr = vae.decoder(vae.fc_decode(z))
             preds, success_rate = query_system.query_batch(xr)
             query_system.store_successful_samples(xr, z, preds)

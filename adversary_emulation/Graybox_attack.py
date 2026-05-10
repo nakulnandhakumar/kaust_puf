@@ -360,7 +360,7 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
     scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[30, 60, 120], gamma=0.7)
 
     training_history = []
-    best_dyn = best_strict = best_avg_conf = 0.0
+    best_strict = best_avg_conf = 0.0
 
     queries_per_epoch = 100
     queries_per_batch = 25
@@ -385,7 +385,7 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
             if batch_idx == 0:
                 with torch.no_grad():
                     try:
-                        conf_q, preds, _ = query_system.query_batch(x_rec.detach())
+                        conf_q, _, _ = query_system.query_batch(x_rec.detach())
                     except Exception:
                         conf_q = None
             else:
@@ -406,7 +406,6 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
 
         # after training epoch, perform a set of black-box queries with generated samples
         vae.eval()
-        dyn_count = 0
         strict_count = 0
         sum_conf = 0.0
         num_batches = max(1, queries_per_epoch // queries_per_batch)
@@ -422,8 +421,7 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
                     z[:m] = base_z + noise
 
                 gen = vae.decoder(vae.fc_decode(z))
-                conf_batch, pred_batch, _ = query_system.query_batch(gen)
-                dyn_count += int(pred_batch.sum().item())
+                conf_batch, _, _ = query_system.query_batch(gen)
                 strict_count += int((conf_batch >= query_system.confidence_threshold).sum().item())
                 sum_conf += float(conf_batch.sum().item())
 
@@ -433,7 +431,6 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
                 except Exception:
                     pass
 
-        dyn_rate = dyn_count / queries_per_epoch
         strict_rate = strict_count / queries_per_epoch
         avg_conf = sum_conf / queries_per_epoch
 
@@ -441,17 +438,15 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
         training_history.append({
             'epoch': epoch+1,
             'avg_train_loss': avg_loss,
-            'dyn_rate': dyn_rate,
             'strict_rate': strict_rate,
             'avg_confidence': avg_conf,
             'total_queries': query_system.query_count
         })
 
-        best_dyn = max(best_dyn, dyn_rate)
         best_strict = max(best_strict, strict_rate)
         best_avg_conf = max(best_avg_conf, avg_conf)
 
-        print(f"Epoch {epoch+1:3d} | Loss {avg_loss:.4f} | Dyn {dyn_rate:.3f} | Strict {strict_rate:.3f} | AvgConf {avg_conf:.3f} | Queries {query_system.query_count}")
+        print(f"Epoch {epoch+1:3d} | Loss {avg_loss:.4f} | Strict {strict_rate:.3f} | AvgConf {avg_conf:.3f} | Queries {query_system.query_count}")
 
         if strict_rate >= target_success_rate and epoch >= 10:
             print("Target strict success reached, stopping early.")
