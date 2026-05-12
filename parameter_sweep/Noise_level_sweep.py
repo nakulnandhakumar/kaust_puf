@@ -161,8 +161,8 @@ Y_real_probe = np.ones(len(X_real_probe), dtype=np.float32)
 X_fake_probe = create_dataset(df_fake_probe, sequence_size)
 Y_fake_probe = np.zeros(len(X_fake_probe), dtype=np.float32)
 
-# Sweep through noise levels
-for current_noise in [0.0, 5.0, 10.0, 20.0, 50.0]:
+# Sweep through noise levels from 0% to 100% in 1% steps.
+for current_noise in range(0, 101, 1):
     noisy_X = add_gaussian_noise(X_dataset, current_noise)
     result, model = train_and_evaluate(noisy_X, Y_dataset, sequence_size, noise_percentage=current_noise)
     acc_real = extra_validation(model, add_gaussian_noise(X_real_probe, current_noise), Y_real_probe)

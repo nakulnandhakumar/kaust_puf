@@ -142,7 +142,7 @@ print(f"Using device: {device}")
 
 results = []
 # Sweep only over sequence length (noise is handled by separate noise_sweep script)
-for seq_len in range(8000, 10001, 500):
+for seq_len in range(200, 10001, 50):
     results.append(train_and_evaluate(seq_len))
 
 # Save results

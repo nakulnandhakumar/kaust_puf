@@ -342,11 +342,15 @@ def init_weights(m):
 
 
 def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, latent_dim=128,
-                                 target_success_rate=0.3):
+                                 target_success_rate=0.3, query_budget=100000):
     """
     Train VAE with confidence-guided loss and periodic querying of the grey-box oracle.
+    query_budget is a hard per-model cap on oracle calls.
     Returns: trained VAE, training_history list, final statistics from query_system.
     """
+    if query_budget <= 0:
+        raise ValueError("query_budget must be positive.")
+
     dataset = TensorDataset(torch.tensor(X_attacker, dtype=torch.float32).unsqueeze(1))
     train_size = int(0.8 * len(dataset))
     train_dataset, _ = random_split(dataset, [train_size, len(dataset) - train_size])
@@ -366,6 +370,10 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
     queries_per_batch = 25
 
     for epoch in range(epochs):
+        if query_system.query_count >= query_budget:
+            print(f"Query budget reached ({query_system.query_count}/{query_budget}).")
+            break
+
         vae.train()
         total_loss = 0.0
         for batch_idx, (x_batch,) in enumerate(train_loader):
@@ -382,10 +390,14 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
             x_rec, mu, logvar = vae(x)
 
             # For first batch of epoch, query the oracle on reconstructions to obtain confidences
-            if batch_idx == 0:
+            if batch_idx == 0 and query_system.query_count < query_budget:
                 with torch.no_grad():
                     try:
-                        conf_q, _, _ = query_system.query_batch(x_rec.detach())
+                        remaining_queries = query_budget - query_system.query_count
+                        if remaining_queries >= x_rec.size(0):
+                            conf_q, _, _ = query_system.query_batch(x_rec.detach())
+                        else:
+                            conf_q = None
                     except Exception:
                         conf_q = None
             else:
@@ -408,22 +420,33 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
         vae.eval()
         strict_count = 0
         sum_conf = 0.0
-        num_batches = max(1, queries_per_epoch // queries_per_batch)
+        target_queries = min(queries_per_epoch, query_budget - query_system.query_count)
+        completed_queries = 0
         with torch.no_grad():
-            for _b in range(num_batches):
+            while completed_queries < target_queries and query_system.query_count < query_budget:
+                batch_queries = min(
+                    queries_per_batch,
+                    target_queries - completed_queries,
+                    query_budget - query_system.query_count
+                )
+                if batch_queries <= 0:
+                    break
+
                 # sample latents: mix random and successful-latent-based proposals
-                z = torch.randn(queries_per_batch, latent_dim, device=device)
+                z = torch.randn(batch_queries, latent_dim, device=device)
                 if len(query_system.successful_latents) > 0:
-                    m = min(queries_per_batch // 3, len(query_system.successful_latents))
-                    idxs = random.sample(range(len(query_system.successful_latents)), m)
-                    base_z = torch.stack([query_system.successful_latents[i] for i in idxs]).to(device)
-                    noise = torch.randn_like(base_z) * random.choice([0.05, 0.1, 0.2])
-                    z[:m] = base_z + noise
+                    m = min(batch_queries // 3, len(query_system.successful_latents))
+                    if m > 0:
+                        idxs = random.sample(range(len(query_system.successful_latents)), m)
+                        base_z = torch.stack([query_system.successful_latents[i] for i in idxs]).to(device)
+                        noise = torch.randn_like(base_z) * random.choice([0.05, 0.1, 0.2])
+                        z[:m] = base_z + noise
 
                 gen = vae.decoder(vae.fc_decode(z))
                 conf_batch, _, _ = query_system.query_batch(gen)
                 strict_count += int((conf_batch >= query_system.confidence_threshold).sum().item())
                 sum_conf += float(conf_batch.sum().item())
+                completed_queries += batch_queries
 
                 # store successful (quantized) samples for replay/guidance
                 try:
@@ -431,8 +454,8 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
                 except Exception:
                     pass
 
-        strict_rate = strict_count / queries_per_epoch
-        avg_conf = sum_conf / queries_per_epoch
+        strict_rate = strict_count / max(1, completed_queries)
+        avg_conf = sum_conf / max(1, completed_queries)
 
         scheduler.step()
         training_history.append({
@@ -446,7 +469,7 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
         best_strict = max(best_strict, strict_rate)
         best_avg_conf = max(best_avg_conf, avg_conf)
 
-        print(f"Epoch {epoch+1:3d} | Loss {avg_loss:.4f} | Strict {strict_rate:.3f} | AvgConf {avg_conf:.3f} | Queries {query_system.query_count}")
+        print(f"Epoch {epoch+1:3d} | Loss {avg_loss:.4f} | Strict {strict_rate:.3f} | AvgConf {avg_conf:.3f} | Queries {query_system.query_count}/{query_budget}")
 
         if strict_rate >= target_success_rate and epoch >= 10:
             print("Target strict success reached, stopping early.")
@@ -459,7 +482,7 @@ def train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, la
 
 # ----------------------------- Utilities & Main --------------------------------
 
-def test_greybox_model(model_path, X_attacker, device, num_classes, model_name="CNN"):
+def test_greybox_model(model_path, X_attacker, device, num_classes, model_name="CNN", query_budget=100000):
     """
     High-level runner:
       - load model_path into CNN
@@ -490,7 +513,11 @@ def test_greybox_model(model_path, X_attacker, device, num_classes, model_name="
         print("Probe confidences (demo):", [float(c) for c in conf.reshape(-1).tolist()])
 
     query_system = GreyBoxConfidenceQuerySystem(cnn_model, device, noise_std=0.05, quant_step=0.1, confidence_threshold=0.5, max_buffer=200)
-    vae, history, stats = train_greybox_confidence_vae(X_attacker, query_system, device, epochs=50, latent_dim=128, target_success_rate=0.3)
+    vae, history, stats = train_greybox_confidence_vae(
+        X_attacker, query_system, device,
+        epochs=50, latent_dim=128, target_success_rate=0.3,
+        query_budget=query_budget
+    )
     return stats, history
 
 
@@ -514,6 +541,8 @@ if __name__ == "__main__":
                         help="N: number of enrolled classes used by the saved CNN.")
     parser.add_argument("--original_model", type=str, default="saved_models/CNN_N_classes.pth")
     parser.add_argument("--enhanced_model", type=str, default="saved_models/Enhanced_CNN_N_classes.pth")
+    parser.add_argument("--query_budget", type=int, default=100000,
+                        help="Hard per-model cap on grey-box oracle queries.")
     args = parser.parse_args()
 
     torch.manual_seed(42); np.random.seed(42); random.seed(42)
@@ -529,8 +558,14 @@ if __name__ == "__main__":
     enhanced_model_path = args.enhanced_model
 
     # Test enhanced and original models (order does not matter)
-    enhanced_stats, enhanced_history = test_greybox_model(enhanced_model_path, X_attacker, device, args.num_classes, model_name="Enhanced")
-    original_stats, original_history = test_greybox_model(original_model_path, X_attacker, device, args.num_classes, model_name="Original")
+    enhanced_stats, enhanced_history = test_greybox_model(
+        enhanced_model_path, X_attacker, device, args.num_classes,
+        model_name="Enhanced", query_budget=args.query_budget
+    )
+    original_stats, original_history = test_greybox_model(
+        original_model_path, X_attacker, device, args.num_classes,
+        model_name="Original", query_budget=args.query_budget
+    )
 
     # Save simple summary
     save_greybox_results(original_stats, enhanced_stats, filename='greybox_results_demo.csv')
