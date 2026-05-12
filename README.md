@@ -1,9 +1,9 @@
 # KAUST_PUF
 ## Chaotic-VCSEL PUF System with AI-Based Authentication Toolkit
 
-This repository provides a complete toolkit for authentication based on the chaotic output of D-shaped Vertical-Cavity Surface-Emitting Lasers (VCSELs), as presented in our project:
-> **Chaos-based scalable optoelectronic physical unclonable functions with AI-driven dynamic authentication**  
-> [ResearchSquare Preprint](https://www.researchsquare.com/article/rs-6484421/v1)
+This repository provides a complete toolkit for authentication based on the chaotic output of D-shaped Vertical-Cavity Surface-Emitting Lasers (VCSELs), as presented in our article:
+> **Physical unclonable functions based on chaotic vertical-cavity surface-emitting lasers for dynamic authentication**  
+> [Nature Electronics](https://www.nature.com/articles/s41928-026-01627-y)
 
 Each laser, under fixed physical bias (current, temperature, and device ID), produces a unique time-series intensity pattern that serves as a challenge-response pair (CRP). These physical signatures are classified using deep learning, tested against adversarial attacks, and evaluated through information-theoretic and dynamical metrics.
 
@@ -87,8 +87,8 @@ pip install numpy pandas torch scipy scikit-learn joblib "qrcode[pil]"
 
 If you find this project useful in your research, please consider citing our work:
 
-> Zhican Zhou, Hang Lu, Nakul Nandhakumar et al.  *21 April 2025, PREPRINT (Version 1), Research Square*.  
-> [https://doi.org/10.21203/rs.3.rs-6484421/v1](https://doi.org/10.21203/rs.3.rs-6484421/v1)
+> Zhou, Z., Lu, H., Nandhakumar, N. et al. Physical unclonable functions based on chaotic vertical-cavity surface-emitting lasers for dynamic authentication. *Nat Electron* (2026).  
+> [https://doi.org/10.1038/s41928-026-01627-y](https://doi.org/10.1038/s41928-026-01627-y)
 
 ## License  
 This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
